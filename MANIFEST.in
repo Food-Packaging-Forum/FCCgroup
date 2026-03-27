@@ -1,0 +1,10 @@
+include README.md
+include LICENSE
+include pyproject.toml
+
+recursive-include fccgroup/assets *
+recursive-include fccgroup/ *.py
+
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude .pytest_cache

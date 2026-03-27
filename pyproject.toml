@@ -1,0 +1,87 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fccgroup"
+version = "0.1.0"
+description = "Chemical grouping package based on structural patterns, functional lists, and nomenclature classification"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Albert Anguera Sempere"},
+    {name = "Helene Wiesinger"}
+]
+maintainers = [
+    {name = "Food Packaging Forum"}
+]
+keywords = [
+    "chemistry",
+    "chemical-classification",
+    "SMARTS",
+    "structural-patterns",
+    "food-contact-chemicals",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Chemistry",
+]
+
+dependencies = [
+    "pandas>=1.0",
+    "numpy>=1.20",
+    "rdkit",
+    "cirpy",
+    "joblib>=1.0",
+    "openpyxl",
+    "tqdm>=4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov",
+    "black",
+    "flake8",
+    "mypy",
+]
+
+[project.urls]
+Repository = "https://github.com/Food-Packaging-Forum/fccgroup.git"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+fccgroup = [
+    "assets/Mapping.xlsx",
+    "assets/lists/*",
+]
+
+[tool.setuptools.packages.find]
+include = ["fccgroup*"]
+exclude = ["assets", "assets.*", "build", "lib"]
+
+
+[tool.black]
+line-length = 100
+target-version = ['py38']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
