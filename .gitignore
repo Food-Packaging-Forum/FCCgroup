@@ -1,0 +1,12 @@
+# Build and distribution
+build/
+dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Packages
+*.egg-info/
+*.egg
