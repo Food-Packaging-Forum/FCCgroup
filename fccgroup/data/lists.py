@@ -82,9 +82,10 @@ def load_lists(
     Returns:
         Dictionary mapping list names to loaded DataFrames
         
-    Raises:
-        FileNotFoundError: If any list file cannot be found
-        ValueError: If list files cannot be loaded
+    Notes:
+        Missing list files are skipped. This allows optional list sources
+        (for example local PlasticMAP exports) to be absent without breaking
+        list loading.
     """
     all_lists: Dict[str, pd.DataFrame] = {}
     
@@ -97,8 +98,9 @@ def load_lists(
         if LIST_G24 in list_name:
             if verbose:
                 print(f"✓ Handling {list_name} separately")
-            df = load_g24_list(row, data_path)
-            all_lists[list_name] = df
+            df = load_g24_list(row, data_path, verbose=verbose)
+            if df is not None:
+                all_lists[list_name] = df
             continue
 
         try:
@@ -201,8 +203,9 @@ def harmonize_function_columns(all_lists: Dict[str, pd.DataFrame], list_mapping:
 
 def load_g24_list(
         row: pd.Series,
-        data_path: str
-) -> pd.DataFrame:
+    data_path: str,
+    verbose: bool = False,
+) -> Optional[pd.DataFrame]:
     """
     Load the G24 list of chemicals with specific handling.
     
@@ -214,10 +217,21 @@ def load_g24_list(
         data_path: Path to the directory containing list files
 
     Returns:
-        DataFrame containing the G24 list of chemicals
+        DataFrame containing the G24 list of chemicals, or None if the
+        PlasticMAP source file is unavailable
     """
     filename = row.get(FILE_COLUMN, '')
+    if not filename:
+        if verbose:
+            print(f"✗ Missing filename for {row.get(LIST_NAME_COLUMN, LIST_G24)}")
+        return None
+
     file_path = Path(data_path) / filename
+    if not file_path.exists():
+        if verbose:
+            print(f"✗ Not found: {filename}")
+        return None
+
     ## Load PlasticMAP database ('G24') sheets and merge them into one Dataframe
     G24_ChemicalFunction = pd.read_excel(file_path, sheet_name=PLASTICMAP_SHEET_CHEMICAL_FUNCTION)
     G24_Chemical = pd.read_excel(file_path, sheet_name=PLASTICMAP_SHEET_CHEMICAL)
