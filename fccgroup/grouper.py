@@ -356,6 +356,26 @@ class ChemicalGrouper:
         return info
 
     @staticmethod
+    def _coerce_enriched_scalar(value: Any) -> Optional[str]:
+        """Convert resolver outputs to a scalar string suitable for single-cell assignment."""
+        if value is None:
+            return None
+
+        if isinstance(value, (list, tuple, set)):
+            for item in value:
+                if not ChemicalGrouper._is_missing_value(item):
+                    text = str(item).strip()
+                    if text:
+                        return text
+            return None
+
+        if ChemicalGrouper._is_missing_value(value):
+            return None
+
+        text = str(value).strip()
+        return text if text else None
+
+    @staticmethod
     def _ensure_internal_columns(
         df: pd.DataFrame,
         column_mapping: Dict[str, str],
@@ -495,12 +515,25 @@ class ChemicalGrouper:
                     for key, value in enriched.items():
                         if key not in missing_fields:
                             continue
-                        if key == 'column_names':
-                            if value:
-                                unique_names = sorted({str(v).strip() for v in value if str(v).strip()})
-                                df.at[idx, key] = '; '.join(unique_names)
-                        elif not self._is_missing_value(value):
-                            df.at[idx, key] = value
+                        if key == ENRICHED_NAME_COLUMNS_COLUMN:
+                            if isinstance(value, (list, tuple, set)):
+                                unique_names = sorted(
+                                    {
+                                        str(v).strip()
+                                        for v in value
+                                        if not self._is_missing_value(v)
+                                    }
+                                )
+                                if unique_names:
+                                    df.at[idx, key] = '; '.join(unique_names)
+                            else:
+                                normalized = self._coerce_enriched_scalar(value)
+                                if normalized is not None:
+                                    df.at[idx, key] = normalized
+                        else:
+                            normalized = self._coerce_enriched_scalar(value)
+                            if normalized is not None:
+                                df.at[idx, key] = normalized
                     cirpy_used += 1
 
         if cirpy_used:

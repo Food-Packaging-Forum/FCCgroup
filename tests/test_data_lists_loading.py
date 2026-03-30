@@ -4,7 +4,7 @@ from fccgroup.constants import FILE_COLUMN, LIST_NAME_COLUMN, READ_PARAMETERS_CO
 from fccgroup.data.lists import load_lists
 
 
-def test_load_lists_skips_missing_plasticmap_file(tmp_path):
+def test_load_lists_skips_missing_plasticmap_file():
     mapping_df = pd.DataFrame(
         [
             {
@@ -15,6 +15,6 @@ def test_load_lists_skips_missing_plasticmap_file(tmp_path):
         ]
     )
 
-    loaded = load_lists(mapping_df=mapping_df, data_path=str(tmp_path), verbose=False)
+    loaded = load_lists(mapping_df=mapping_df, data_path=str("fccgroup/assets/lists/"), verbose=True)
 
     assert loaded == {}

@@ -4,6 +4,7 @@ import pytest
 import pandas as pd
 
 from fccgroup import ChemicalGrouper, GroupingConfig, GroupingMethod, ColumnMapping
+from fccgroup.constants import CAS_COLUMN
 
 
 class TestChemicalGrouperSMARTS:
@@ -245,3 +246,31 @@ class TestChemicalGrouperSMARTS:
 
         with pytest.raises(ValueError, match='Unknown SMARTS fingerprints'):
             ChemicalGrouper(df=pd.DataFrame({'Structure': ['CC']}), grouping_config=config)
+
+    def test_smiles_to_cas_list_enrichment_is_scalarized(self, monkeypatch):
+        """List-valued CAS resolver outputs should be normalized before DataFrame assignment."""
+        df = pd.DataFrame({'Structure': ['CC']})
+        config = GroupingConfig(
+            methods=[GroupingMethod.SMARTS, GroupingMethod.LISTS],
+            column_mapping=ColumnMapping(cas=None, smiles='Structure'),
+        )
+
+        # Skip list asset loading; this test targets resolver assignment behavior.
+        monkeypatch.setattr(ChemicalGrouper, '_ensure_lists_loaded', lambda self: None)
+        monkeypatch.setattr(
+            ChemicalGrouper,
+            '_apply_structural_patterns',
+            lambda self, df, id_column, smiles_column, fingerprints_dict: df,
+        )
+
+        def _fake_fetch(identifier, input_mode, missing_fields):
+            return {
+                CAS_COLUMN: ['74-84-0', '999-99-9'],
+            }
+
+        monkeypatch.setattr(ChemicalGrouper, '_fetch_chemical_info', staticmethod(_fake_fetch))
+
+        result = ChemicalGrouper(df=df, grouping_config=config).group_chemicals()
+
+        assert CAS_COLUMN in result.columns
+        assert result.loc[0, CAS_COLUMN] == '74-84-0'
