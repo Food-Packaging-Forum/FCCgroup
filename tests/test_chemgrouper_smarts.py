@@ -263,14 +263,73 @@ class TestChemicalGrouperSMARTS:
             lambda self, df, id_column, smiles_column, fingerprints_dict: df,
         )
 
-        def _fake_fetch(identifier, input_mode, missing_fields):
+        def _fake_fetch(identifiers):
             return {
-                CAS_COLUMN: ['74-84-0', '999-99-9'],
+                identifier: {
+                    CAS_COLUMN: ['74-84-0', '999-99-9'],
+                }
+                for identifier in identifiers
             }
 
-        monkeypatch.setattr(ChemicalGrouper, '_fetch_chemical_info', staticmethod(_fake_fetch))
+        monkeypatch.setattr('fccgroup.grouper.fetch_chemical_info', _fake_fetch)
 
         result = ChemicalGrouper(df=df, grouping_config=config).group_chemicals()
 
         assert CAS_COLUMN in result.columns
         assert result.loc[0, CAS_COLUMN] == '74-84-0'
+
+    def test_build_comptox_batches_enforces_strict_limit(self):
+        """CompTox batches must satisfy len('\\n'.join(batch)) < 200 for each request."""
+        grouper = ChemicalGrouper(
+            df=pd.DataFrame({'Structure': ['CC']}),
+            grouping_config=GroupingConfig(
+                methods=[GroupingMethod.SMARTS],
+                column_mapping=ColumnMapping(cas=None, smiles='Structure'),
+            ),
+        )
+
+        # 3 identifiers of length 66 cannot fit in one batch because 66+1+66+1+66 = 200.
+        queue = [
+            (0, 'A' * 66),
+            (1, 'B' * 66),
+            (2, 'C' * 66),
+        ]
+
+        batches = grouper._build_comptox_batches(queue, max_payload_chars=200)
+
+        assert len(batches) == 2
+        for batch in batches:
+            identifiers = [identifier for _, identifier in batch]
+            assert len("\n".join(identifiers)) < 200
+
+    def test_comptox_batch_failure_continues_other_batches(self, monkeypatch):
+        """A failing CompTox batch should not stop enrichment of other batches."""
+        df = pd.DataFrame({'Structure': ['A' * 120, 'B' * 120]})
+        config = GroupingConfig(
+            methods=[GroupingMethod.LISTS],
+            column_mapping=ColumnMapping(cas=None, smiles='Structure'),
+        )
+
+        monkeypatch.setattr(ChemicalGrouper, '_ensure_lists_loaded', lambda self: None)
+        monkeypatch.setattr(
+            ChemicalGrouper,
+            '_apply_functional_lists',
+            lambda self, df, cas_column: df,
+        )
+
+        def _fake_fetch(identifiers):
+            if identifiers and identifiers[0].startswith('B'):
+                raise RuntimeError('simulated batch failure')
+            return {
+                identifier: {
+                    CAS_COLUMN: '74-84-0',
+                }
+                for identifier in identifiers
+            }
+
+        monkeypatch.setattr('fccgroup.grouper.fetch_chemical_info', _fake_fetch)
+
+        result = ChemicalGrouper(df=df, grouping_config=config).group_chemicals()
+
+        assert result.loc[0, CAS_COLUMN] == '74-84-0'
+        assert result.loc[1, CAS_COLUMN] == ''
