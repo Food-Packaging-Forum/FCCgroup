@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fccgroup"
-version = "0.1.1"
+version = "0.2.0"
 description = "Chemical grouping package based on structural patterns, functional lists, and nomenclature classification"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -40,7 +40,7 @@ dependencies = [
     "pandas>=1.0",
     "numpy>=1.20",
     "rdkit",
-    "cirpy",
+    "requests>=2.0",
     "joblib>=1.0",
     "openpyxl",
     "tqdm>=4.0",

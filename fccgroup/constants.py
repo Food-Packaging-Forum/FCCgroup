@@ -166,3 +166,11 @@ PLASTICMAP_SHEET_SOURCE: Final[str] = "Source"
 PLASTCHEM_COLUMNS_KEY: Final[str] = "PlastChem_columns"
 FUNCTION_SYNONYMS_G4_KEY: Final[str] = "function_synonyms_g4"
 FUNCTION_SYNONYMS_REGEX_KEY: Final[str] = "function_synonyms_regex"
+
+# ============================================================================
+# COMPTOX CONFIGURATION
+# ============================================================================
+
+COMPTOX_SEARCH_EQUAL_URL: Final[str] = "https://comptox.epa.gov/ctx-api/chemical/search/equal/"
+COMPTOX_DTXCID_DETAIL_URL: Final[str] = "https://comptox.epa.gov/ctx-api/chemical/detail/search/by-dtxcid/"
+COMPTOX_API_KEY_ENV: Final[str] = "COMPTOX_API_KEY"

@@ -6,18 +6,16 @@ This module provides functionality to group chemicals based on:
 2. Functional lists (regulatory databases, chemical inventories)
 3. Regex patterns (name and formula matching)
 
-Chemical information is retrieved dynamically using CIRpy for user-provided CAS IDs.
+Chemical information is retrieved dynamically using CompTox for user-provided CAS IDs.
 """
 
 from typing import List, Dict, Optional, Union, Any, Set, Tuple
 from pathlib import Path
-import time
 
 import pandas as pd
 import numpy as np
 from joblib import Parallel, delayed
 
-import cirpy
 from tqdm.auto import tqdm
 
 from .config import GroupingConfig, GroupingMethod, InputMode
@@ -29,6 +27,7 @@ from .data import load_mapping_file, load_lists, harmonize_cas_columns, harmoniz
 from .data import apply_simple_regex, process_groups, combine_groups, generate_parent_groups
 from .data import column_contains_patterns, merge_dataframes
 from .data.constants import individual_lists, synonym_lists, regex_combination_dictionary
+from .comptox import fetch_chemical_info
 
 
 class ChemicalGrouper:
@@ -47,7 +46,7 @@ class ChemicalGrouper:
     Resources are loaded on-demand only when needed by the selected methods, minimizing
     startup time and memory usage.
     """
-    
+
     def __init__(
         self,
         df: pd.DataFrame,
@@ -86,8 +85,8 @@ class ChemicalGrouper:
         self._smarts_fingerprints = self._resolve_smarts_fingerprints()
         # Validate that the provided columns are actual column names in the provided dataframe
         self._validate_declared_columns()
-        # Validate whether the selected methods are feasible with the provided column mapping and resolve and check whether cirpy is needed for enrichment
-        self._validate_method_requirements_and_check_cirpy_usage()
+        # Validate method feasibility and whether CompTox enrichment is required.
+        self._validate_method_requirements_and_set_comptox()
         
         self._lists_loaded: bool = False
         self._all_lists: Dict[str, pd.DataFrame] = {}
@@ -145,9 +144,9 @@ class ChemicalGrouper:
 
         self.df = self.df.loc[:, selected_columns].copy()
 
-    def _validate_method_requirements_and_check_cirpy_usage(self) -> None:
+    def _validate_method_requirements_and_set_comptox(self) -> None:
         """Validate that the selected grouping methods are feasible with the provided column mapping. 
-        If not, raise ValueError with clear message. Also determine whether cirpy enrichment will be needed."""
+        If not, raise ValueError with clear message. Also determine whether CompTox enrichment will be needed."""
 
         has_cas = self._is_provided(self.column_mapping.get(CANONICAL_CAS_KEY))
         has_smiles = self._is_provided(self.column_mapping.get(CANONICAL_SMILES_KEY))
@@ -163,34 +162,32 @@ class ChemicalGrouper:
         only_smiles = has_smiles and not has_cas
         methods = self.selected_methods
 
-        needs_cirpy = False
+        needs_comptox = False
         if only_cas and methods != {GroupingMethod.LISTS}:
-            needs_cirpy = True
+            needs_comptox = True
         if only_smiles and methods != {GroupingMethod.SMARTS}:
-            needs_cirpy = True
+            needs_comptox = True
 
         regex_names = self.config.resolved_name_columns()
         has_formula = self._is_provided(self.column_mapping.get(CANONICAL_FORMULA_KEY))
         if GroupingMethod.REGEX in methods:
-            if regex_names and not has_formula and (only_cas or only_smiles or (has_cas and has_smiles)):
-                needs_cirpy = True
-            if (not regex_names or not has_formula) and (has_cas and has_smiles):
-                needs_cirpy = True
+            if not (regex_names and has_formula and has_smiles):
+                needs_comptox = True
 
         if GroupingMethod.SMARTS in methods and not has_smiles:
             self.column_mapping[CANONICAL_SMILES_KEY] = SMILES_COLUMN
-            needs_cirpy = True
+            needs_comptox = True
         if GroupingMethod.LISTS in methods and not has_cas:
             self.column_mapping[CANONICAL_CAS_KEY] = CAS_COLUMN
-            needs_cirpy = True
+            needs_comptox = True
         if GroupingMethod.REGEX in methods:
             if not regex_names:
-                needs_cirpy = True
+                needs_comptox = True
             if not has_formula:
                 self.column_mapping[CANONICAL_FORMULA_KEY] = FORMULA_COLUMN
-                needs_cirpy = True
+                needs_comptox = True
 
-        self._needs_cirpy_enrichment = needs_cirpy
+        self._needs_comptox_enrichment = needs_comptox
     
     def _ensure_lists_loaded(self) -> None:
         """
@@ -285,75 +282,6 @@ class ChemicalGrouper:
         
         self._regex_loaded = True
         print(f"  [OK] Loaded {len(self._regex_patterns)} regex patterns")
-    
-    @staticmethod
-    def _fetch_chemical_info(
-        identifier: str,
-        input_mode: InputMode,
-        missing_fields: Set[str],
-    ) -> Dict[str, Optional[Union[str, List[str]]]]:
-        """
-        Fetch chemical information from CIRpy.
-        
-        Retrieves SMILES, common name, IUPAC name, and molecular formula for a CAS number
-        from the NIH Chemical Identifier Resolver (CIRpy). Includes a delay to avoid
-        overwhelming the service.
-        
-        Args:
-            identifier: CAS Registry Number or SMILES input.
-            input_mode: Input mode associated with identifier.
-            missing_fields: Canonical fields that are missing and need to be resolved.
-            
-        Returns:
-            Dictionary containing:
-                - casId: Input CAS number
-                - SMILES: Canonical SMILES string or None if not found
-                - commonName: First common name or None
-                - IUPAC_name: IUPAC systematic name or None
-                - formula: Molecular formula or None
-        """
-        info: Dict[str, Optional[Union[str, List[str]]]] = {
-            CAS_COLUMN: identifier if input_mode == InputMode.CAS_ID else None,
-            SMILES_COLUMN: identifier if input_mode == InputMode.SMILES else None,
-            ENRICHED_NAME_COLUMNS_COLUMN: [],
-            FORMULA_COLUMN: None,
-        }
-
-        if input_mode == InputMode.SMILES:
-            info[SMILES_COLUMN] = identifier
-            resolver = ['smiles']
-        else:
-            info[CAS_COLUMN] = identifier
-            resolver = ['cas_number']
-
-        if not missing_fields:
-            return info
-
-        try:
-            if CAS_COLUMN in missing_fields and info[CAS_COLUMN] is None:
-                info[CAS_COLUMN] = cirpy.resolve(identifier, 'cas', resolver)
-
-            if SMILES_COLUMN in missing_fields and ChemicalGrouper._is_missing_value(info[SMILES_COLUMN]):
-                info[SMILES_COLUMN] = cirpy.resolve(identifier, 'smiles', resolver)
-
-            if ENRICHED_NAME_COLUMNS_COLUMN in missing_fields:
-                name = cirpy.resolve(identifier, 'names', resolver)
-                if name and isinstance(name, list) and len(name) > 0:
-                    info[ENRICHED_NAME_COLUMNS_COLUMN].append(name[0])
-                elif name and isinstance(name, str):
-                    info[ENRICHED_NAME_COLUMNS_COLUMN].append(name)
-                iupac = cirpy.resolve(identifier, 'iupac_name', resolver)
-                if iupac and isinstance(iupac, str):
-                    info[ENRICHED_NAME_COLUMNS_COLUMN].append(iupac)
-
-            if FORMULA_COLUMN in missing_fields:
-                info[FORMULA_COLUMN] = cirpy.resolve(identifier, 'formula', resolver)
-
-            time.sleep(0.2)
-        except Exception as e:
-            print(f"  [WARN] Could not fetch data for {identifier}: {str(e)}")
-        
-        return info
 
     @staticmethod
     def _coerce_enriched_scalar(value: Any) -> Optional[str]:
@@ -418,6 +346,71 @@ class ChemicalGrouper:
 
         return missing
 
+    @staticmethod
+    def _build_comptox_batches(
+        enrichment_queue: List[Tuple[Any, str]],
+        max_payload_chars: int = 200,
+    ) -> List[List[Tuple[Any, str]]]:
+        """Create ordered batches where len("\\n".join(batch_identifiers)) is strictly below max."""
+        batches: List[List[Tuple[Any, str]]] = []
+        current_batch: List[Tuple[Any, str]] = []
+        current_payload_len = 0
+
+        for idx, identifier in enrichment_queue:
+            identifier_len = len(identifier)
+            if identifier_len >= max_payload_chars:
+                print(
+                    "  [WARN] Identifier too long for CompTox batch payload "
+                    f"(len={identifier_len}) at row {idx}; skipping enrichment"
+                )
+                continue
+
+            next_payload_len = identifier_len if not current_batch else current_payload_len + 1 + identifier_len
+
+            if current_batch and next_payload_len >= max_payload_chars:
+                batches.append(current_batch)
+                current_batch = []
+                current_payload_len = 0
+                next_payload_len = identifier_len
+
+            current_batch.append((idx, identifier))
+            current_payload_len = next_payload_len
+
+        if current_batch:
+            batches.append(current_batch)
+
+        return batches
+
+    def _apply_enriched_row_values(
+        self,
+        df: pd.DataFrame,
+        idx: Any,
+        enriched_row: Dict[str, Any],
+    ) -> None:
+        """Assign all resolver-returned canonical fields for a single row."""
+        for key in [CAS_COLUMN, SMILES_COLUMN, FORMULA_COLUMN, ENRICHED_NAME_COLUMNS_COLUMN]:
+            value = enriched_row.get(key)
+            if key == ENRICHED_NAME_COLUMNS_COLUMN:
+                if isinstance(value, (list, tuple, set)):
+                    unique_names = sorted(
+                        {
+                            str(v).strip()
+                            for v in value
+                            if not self._is_missing_value(v)
+                        }
+                    )
+                    if unique_names:
+                        df.at[idx, key] = '; '.join(unique_names)
+                else:
+                    normalized = self._coerce_enriched_scalar(value)
+                    if normalized is not None:
+                        df.at[idx, key] = normalized
+                continue
+
+            normalized = self._coerce_enriched_scalar(value)
+            if normalized is not None:
+                df.at[idx, key] = normalized
+
     def _resolve_smarts_fingerprints(self) -> Dict[str, Union[str, Any]]:
         """Resolve and validate which SMARTS fingerprints should be applied."""
         selected = self.config.smarts_fingerprints
@@ -443,7 +436,7 @@ class ChemicalGrouper:
         Group chemicals based on their CAS IDs or SMILES strings using configured methods.
         
         Uses the DataFrame bound at initialization time as the reference source.
-        CIRPY is queried only for fields that are required by selected methods and
+        CompTox is queried only for fields that are required by selected methods and
         missing for each specific chemical.
         
         Args:
@@ -496,48 +489,50 @@ class ChemicalGrouper:
                 f"for input mode '{input_mode.value}'"
             )
 
-        cirpy_used = 0
-        if self._needs_cirpy_enrichment:
-            with tqdm(df.iterrows(), total=len(df), desc="Step 0/3: Resolving via CIRpy", unit="chem") as pbar:
+        comptox_used = 0
+        if self._needs_comptox_enrichment:
+            enrichment_queue: List[Tuple[Any, str]] = []
+
+            with tqdm(df.iterrows(), total=len(df), desc="Step 0/3: Queueing CompTox lookups", unit="chem") as pbar:
                 for idx, row in pbar:
                     row_data = row.to_dict()
-                    # Find which fields are missing for that specific row based on the selected methods and their requirements
-                    missing_fields = self._missing_fields_for_row(row_data)
-                    if not missing_fields:
-                        continue
-
                     identifier = row_data.get(resolver_col)
                     if self._is_missing_value(identifier):
-                        pbar.write(f"  [WARN] Missing identifier in resolver column for row {idx}, skipping enrichment")
+                        pbar.write(
+                            f"  [WARN] Missing identifier in resolver column for row {idx}, "
+                            "skipping enrichment"
+                        )
                         continue
 
-                    enriched = self._fetch_chemical_info(str(identifier), input_mode, missing_fields)
-                    for key, value in enriched.items():
-                        if key not in missing_fields:
-                            continue
-                        if key == ENRICHED_NAME_COLUMNS_COLUMN:
-                            if isinstance(value, (list, tuple, set)):
-                                unique_names = sorted(
-                                    {
-                                        str(v).strip()
-                                        for v in value
-                                        if not self._is_missing_value(v)
-                                    }
-                                )
-                                if unique_names:
-                                    df.at[idx, key] = '; '.join(unique_names)
-                            else:
-                                normalized = self._coerce_enriched_scalar(value)
-                                if normalized is not None:
-                                    df.at[idx, key] = normalized
-                        else:
-                            normalized = self._coerce_enriched_scalar(value)
-                            if normalized is not None:
-                                df.at[idx, key] = normalized
-                    cirpy_used += 1
+                    enrichment_queue.append((idx, str(identifier)))
 
-        if cirpy_used:
-            print(f"  [OK] CIRpy enrichment used for {cirpy_used}/{len(df)} entries")
+            comptox_batches = self._build_comptox_batches(enrichment_queue, max_payload_chars=200)
+            comptox_used = len(enrichment_queue)
+
+            with tqdm(comptox_batches, desc="Step 0/3: Resolving via CompTox", unit="batch") as pbar:
+                for batch_entries in pbar:
+                    batch_identifiers = [identifier for _, identifier in batch_entries]
+                    try:
+                        enriched_by_identifier = fetch_chemical_info(batch_identifiers)
+                    except Exception as exc:
+                        pbar.write(
+                            "  [WARN] CompTox batch request failed for "
+                            f"{len(batch_identifiers)} identifiers: {str(exc)}"
+                        )
+                        continue
+
+                    for idx, identifier in batch_entries:
+                        enriched_row = enriched_by_identifier.get(identifier)
+                        if not isinstance(enriched_row, dict):
+                            continue
+                        self._apply_enriched_row_values(
+                            df=df,
+                            idx=idx,
+                            enriched_row=enriched_row,
+                        )
+
+        if comptox_used:
+            print(f"  [OK] CompTox enrichment used for {comptox_used}/{len(df)} entries")
         
         df.fillna('', inplace=True)
         
