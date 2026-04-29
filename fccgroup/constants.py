@@ -46,7 +46,7 @@ FUNCTION_GROUP_COLUMN: Final[str] = "function_group_in"
 GROUP_KEY_COLUMN: Final[str] = "Group_key"
 LIST_ID_COLUMN: Final[str] = "list_id"
 LIST_NAME_COLUMN: Final[str] = "list_name"
-FILE_COLUMN: Final[str] = "file"
+FILE_COLUMN: Final[str] = "file_location"
 READ_PARAMETERS_COLUMN: Final[str] = "read_parameters"
 USE_COLUMN: Final[str] = "use"
 IS_COMPLEX_COLUMN: Final[str] = "is_complex"
@@ -56,8 +56,8 @@ REGEX_KEYWORD_COLUMN: Final[str] = "keyword"
 REGEX_COLUMN_NAME_COLUMN: Final[str] = "column_name"
 REGEX_KEYWORD_LOCATION_COLUMN: Final[str] = "keyword_loc"
 REGEX_KEYWORD_TYPE_COLUMN: Final[str] = "keyword_type"
-REGEX_GROUP_COLUMN: Final[str] = "group"
-REGEX_SUPER_GROUP_COLUMN: Final[str] = "super_group"
+REGEX_GROUP_COLUMN: Final[str] = "Group_key"
+REGEX_SUPER_GROUP_COLUMN: Final[str] = "Supergroup"
 REGEX_PATTERN_TYPE: Final[str] = "regex"
 
 # CAS processing columns
@@ -116,8 +116,7 @@ ASSETS_DIR: Final[Path] = Path(__file__).parent / "assets"
 
 # Asset subdirectories
 LISTS_DIR: Final[Path] = ASSETS_DIR / "lists"
-SMILES_LOOKUP_FILE: Final[Path] = ASSETS_DIR / "smiles_lookup.tsv"
-FCC_UNIVERSE_FILE: Final[Path] = ASSETS_DIR / "FCCuniverse_grouping_in.xlsx"
+FCC_UNIVERSE_FILE: Final[Path] = ASSETS_DIR / "grouped_chemicals.xlsx"
 
 
 # ============================================================================

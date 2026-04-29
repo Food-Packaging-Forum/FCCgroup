@@ -36,7 +36,8 @@ def molecule_composition(mol: Chem.Mol) -> Dict[str, int]:
         if symbol not in composition:
             composition[symbol] = 0
         composition[symbol] += 1
-    return composition
+    # Order dictionary alphabetically by keys
+    return dict(sorted(composition.items()))
 
 
 def get_bond_orders(mol: Chem.Mol) -> List[float]:
