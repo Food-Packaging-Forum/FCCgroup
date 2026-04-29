@@ -41,9 +41,9 @@ def _run_grouping(methods: list[GroupingMethod]) -> pd.DataFrame:
 
 def _has_lists_and_regex_assets() -> bool:
     """Check whether optional assets for LISTS/REGEX are available."""
-    root = Path(__file__).resolve().parent.parent
-    mapping_file = root / "assets" / MAPPING_FILE_NAME
-    lists_dir = root / "assets" / LISTS_DIR.name
+
+    mapping_file = ASSETS_DIR / MAPPING_FILE_NAME
+    lists_dir = ASSETS_DIR / LISTS_DIR.name
     return mapping_file.exists() and lists_dir.exists()
 
 

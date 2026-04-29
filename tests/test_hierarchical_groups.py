@@ -1,5 +1,6 @@
 import pytest
 
+from fccgroup.constants import CAS_COLUMN
 from tests.conftest import _repo_root
 
 chemical_groups = {
@@ -313,13 +314,13 @@ def check_group_match_subgroups(df, group, subgroups, not_matching_list):
     for subgroup in subgroups:
         child_columns = find_column(df, subgroup)
         filter2 = df[child_columns] > 0
-        non_matching_df = df.loc[filter1 & filter2, [("Identifier", "casId_main")]]
+        non_matching_df = df.loc[filter1 & filter2, [("Identifier", CAS_COLUMN)]]
         if not non_matching_df.empty:
             for _, row in non_matching_df.iterrows():
                 not_matching_list.append({
                     "Parent": group,
                     "Child": subgroup,
-                    "CASRN": row[("Identifier", "casId_main")]
+                    "CASRN": row[("Identifier", CAS_COLUMN)]
                 })
 
 def find_column(df, column_name):

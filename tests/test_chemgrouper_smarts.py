@@ -10,7 +10,7 @@ from fccgroup.constants import CAS_COLUMN
 class TestChemicalGrouperSMARTS:
     """Test suite for ChemicalGrouper using SMARTS-only mode."""
     
-    def test_formaldehyde_cas_50_00_0(self, grouper_smarts_only, formaldehyde_df, load_lookup_df, load_lookup_dict):
+    def test_formaldehyde_cas_50_00_0(self, grouper_smarts_only, formaldehyde_df):
         """Test grouping of CAS 50-00-0 (formaldehyde) using SMILES C=O."""
         results = grouper_smarts_only.group_chemicals()
         
@@ -29,7 +29,7 @@ class TestChemicalGrouperSMARTS:
         groups = results['Chemical groups'].iloc[0] if 'Chemical groups' in results.columns else str(results.iloc[0])
         assert isinstance(groups, (str, list))
     
-    def test_ethane_smiles_cc(self, grouper_smarts_only, ethane_df, load_lookup_df, load_lookup_dict):
+    def test_ethane_smiles_cc(self, grouper_smarts_only, ethane_df):
         """Test grouping of SMILES CC (ethane) using SMARTS-only mode."""
         results = grouper_smarts_only.group_chemicals()
         
@@ -60,7 +60,7 @@ class TestChemicalGrouperSMARTS:
         assert config.use_regex is False
         assert "SMARTS" in config.description
     
-    def test_invalid_smiles_not_in_lookup(self, grouper_smarts_only, formaldehyde_df, load_lookup_df, load_lookup_dict):
+    def test_invalid_smiles_not_in_lookup(self, grouper_smarts_only, formaldehyde_df):
         """Test behavior when SMILES is not found in lookup."""
         results = grouper_smarts_only.group_chemicals()
         

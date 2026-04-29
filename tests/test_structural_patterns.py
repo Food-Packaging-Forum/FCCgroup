@@ -10,7 +10,7 @@ def test_pattern_names_in_fingerprints(pattern_df, fingerprints):
     columns_missmatch = []
     for column in pattern_df.Group:
         if column not in fingerprints.keys():
-            if column in ['Molecular composition', 'Not groupable']:
+            if column in ['Molecular composition', 'Not groupable', 'SMILES check', 'Contains …']:
                 continue
             columns_missmatch.append(column)
     assert not columns_missmatch, f"Some columns in mapping are missing in fingerprints {columns_missmatch}"

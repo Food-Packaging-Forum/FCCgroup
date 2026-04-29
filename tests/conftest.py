@@ -53,54 +53,16 @@ def ethane_df():
         CAS_COLUMN: ['74-84-0'],
     })
 
-@pytest.fixture
-def load_lookup_df():
-    """Load the lookup DataFrame from the CSV file."""
-    lookup_path = _assets_root() / SMILES_LOOKUP_FILE.name
-    if not lookup_path.exists():
-        pytest.skip("smiles_lookup.tsv not found in packaged assets")
-    return pd.read_csv(lookup_path, sep='\t')
-
-
-@pytest.fixture
-def load_lookup_dict(load_lookup_df):
-    """Build a canonical SMILES → row-index lookup dict from the lookup DataFrame."""
-    from rdkit import Chem
-
-    def canonical(s):
-        try:
-            mol = Chem.MolFromSmiles(s)
-            return Chem.MolToSmiles(mol, canonical=True) if mol is not None else None
-        except Exception:
-            return None
-
-    smiles_col = SMILES_COLUMN if SMILES_COLUMN in load_lookup_df.columns else load_lookup_df.columns[0]
-    lookup = {}
-    for idx, row in load_lookup_df.iterrows():
-        key = canonical(str(row[smiles_col]))
-        if key is not None:
-            lookup[key] = idx
-    return lookup
-
-
 def _repo_root() -> Path:
     return Path(__file__).resolve().parent.parent
 
-
-def _assets_root() -> Path:
-    package_assets = _repo_root() / "fccgroup" / "assets"
-    if package_assets.exists():
-        return package_assets
-    return _repo_root() / "assets"
-
-
 @pytest.fixture
 def pattern_df() -> pd.DataFrame:
-    mapping_path = _assets_root() / MAPPING_FILE_NAME
+    mapping_path = ASSETS_DIR / MAPPING_FILE_NAME
     if not mapping_path.exists():
         pytest.skip("assets/Mapping.xlsx not found")
 
-    raw = pd.read_excel(mapping_path, sheet_name=MAPPING_SHEET_SMARTS, header=1)
+    raw = pd.read_excel(mapping_path, sheet_name=MAPPING_SHEET_SMARTS)
     if "Column_name" not in raw.columns or "SMARTS_pattern" not in raw.columns:
         pytest.skip("B - SMARTS sheet is missing expected columns")
 
@@ -122,13 +84,29 @@ def fingerprints() -> dict:
 
 @pytest.fixture
 def regex_df() -> pd.DataFrame:
-    mapping_path = _assets_root() / MAPPING_FILE_NAME
+    mapping_path = ASSETS_DIR / MAPPING_FILE_NAME
     if not mapping_path.exists():
         pytest.skip("assets/Mapping.xlsx not found")
 
     df = pd.read_excel(mapping_path, sheet_name=MAPPING_SHEET_KEYWORDS)
     if REGEX_COLUMN_NAME_COLUMN not in df.columns:
         pytest.skip("B - Keywords sheet is missing 'column_name'")
+    df = df[df.use == True].reset_index(drop=True)
+    return df
+
+@pytest.fixture
+def lists_df() -> pd.DataFrame:
+    mapping_path = ASSETS_DIR / MAPPING_FILE_NAME
+    if not mapping_path.exists():
+        pytest.skip("assets/Mapping.xlsx not found")
+
+    df = pd.read_excel(mapping_path, sheet_name=MAPPING_SHEET_LISTS)
+    if GROUP_KEY_COLUMN not in df.columns:
+        pytest.skip(f"B - Lists sheet is missing '{GROUP_KEY_COLUMN}'")
+    if LIST_ID_COLUMN not in df.columns:
+        pytest.skip(f"B - Lists sheet is missing '{LIST_ID_COLUMN}'")
+    df = df[df.use == True].reset_index(drop=True)
+    df[LIST_NAME_COLUMN] = df[GROUP_KEY_COLUMN] + "_" + df[LIST_ID_COLUMN]
     return df
 
 
@@ -136,46 +114,14 @@ def regex_df() -> pd.DataFrame:
 def regex_combination_dictionary() -> dict:
     return regex_combo_dict
 
-
 @pytest.fixture
-def regex_columns(regex_df: pd.DataFrame, regex_combination_dictionary: dict) -> list[str]:
-    base = [col for col in regex_df.get(REGEX_COLUMN_NAME_COLUMN, pd.Series([], dtype=str)).dropna().unique()]
-    return base + ["Organic_C", "Inorganic_noC", "Metal_Metalloid"] + list(regex_combination_dictionary.keys())
-
-
-@pytest.fixture
-def universe(regex_columns: list[str]) -> pd.DataFrame:
+def universe() -> pd.DataFrame:
     """Build a MultiIndex universe DataFrame from repository assets for comparison tests."""
-    universe_path = _assets_root() / FCC_UNIVERSE_FILE.name.replace("_in", "_all")
+    universe_path = ASSETS_DIR / FCC_UNIVERSE_FILE
     if not universe_path.exists():
-        pytest.skip("assets/FCCuniverse_grouping_all.xlsx not found")
+        pytest.skip("assets/grouped_chemicals.xlsx not found")
 
-    df = pd.read_excel(universe_path, sheet_name="FCCs")
-    if "casId_main" not in df.columns:
-        pytest.skip("FCCuniverse_grouping_all.xlsx::FCCs missing 'casId_main'")
-
-    identifier_cols = {
-        "casId_main",
-        SMILES_COLUMN,
-        COMMON_NAME_COLUMN,
-        IUPAC_NAME_COLUMN,
-        FORMULA_COLUMN,
-    }
-    regex_cols = set(regex_columns)
-
-    multi_cols = []
-    for col in df.columns:
-        if col in identifier_cols:
-            multi_cols.append(("Identifier", col))
-        elif col in regex_cols:
-            multi_cols.append(("Regex", col))
-        elif re.search(r"_G\d{2}$", str(col)):
-            multi_cols.append(("Lists", col))
-        else:
-            multi_cols.append(("Other", str(col)))
-
-    df = df.copy()
-    df.columns = pd.MultiIndex.from_tuples(multi_cols)
+    df = pd.read_excel(universe_path, header=[0,1])
     return df
 
 
@@ -185,8 +131,8 @@ def lists_reference_df(universe: pd.DataFrame) -> pd.DataFrame:
     if not list_cols:
         pytest.skip("No list columns found in universe fixture")
 
-    out = universe[[('Identifier', 'casId_main'), *list_cols]].copy()
-    out.columns = ["casId_main"] + [col[1] for col in list_cols]
+    out = universe[[('Identifier', CAS_COLUMN)] + [("Lists", col[1]) for col in list_cols]].copy()
+    out.columns = [CAS_COLUMN] + [col[1] for col in list_cols]
     return out
 
 
@@ -196,8 +142,8 @@ def regex_reference_df(universe: pd.DataFrame) -> pd.DataFrame:
     if not regex_cols:
         pytest.skip("No regex columns found in universe fixture")
 
-    out = universe[[('Identifier', 'casId_main'), *regex_cols]].copy()
-    out.columns = ["casId_main"] + [col[1] for col in regex_cols]
+    out = universe[[('Identifier', CAS_COLUMN)] + [("Regex", col[1]) for col in regex_cols]].copy()
+    out.columns = [CAS_COLUMN] + [col[1] for col in regex_cols]
     return out
 
 
