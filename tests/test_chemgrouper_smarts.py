@@ -4,7 +4,8 @@ import pytest
 import pandas as pd
 
 from fccgroup import ChemicalGrouper, GroupingConfig, GroupingMethod, ColumnMapping
-from fccgroup.constants import CAS_COLUMN
+from fccgroup.constants import CAS_COLUMN, SMILES_COLUMN, OUTPUT_COLUMN
+from fccgroup.constants import MULTIINDEX_IDENTIFIER_LABEL, MULTIINDEX_STRUCTURAL_LABEL
 
 
 class TestChemicalGrouperSMARTS:
@@ -19,14 +20,14 @@ class TestChemicalGrouperSMARTS:
         assert len(results) == 1
         
         # Check that required columns exist
-        assert 'SMILES' in results.columns
-        assert results['SMILES'].iloc[0] == 'C=O'
+        assert (MULTIINDEX_IDENTIFIER_LABEL, SMILES_COLUMN) in results.columns
+        assert results[(MULTIINDEX_IDENTIFIER_LABEL, SMILES_COLUMN)].iloc[0] == 'C=O'
         
         # Check that SMARTS grouping was applied
-        assert 'Chemical groups' in results.columns or any('group' in str(col).lower() for col in results.columns)
+        assert (MULTIINDEX_STRUCTURAL_LABEL, OUTPUT_COLUMN) in results.columns or any('group' in str(col).lower() for col in results.columns)
         
         # Formaldehyde should contain oxygen patterns
-        groups = results['Chemical groups'].iloc[0] if 'Chemical groups' in results.columns else str(results.iloc[0])
+        groups = results[(MULTIINDEX_STRUCTURAL_LABEL, OUTPUT_COLUMN)].iloc[0] if (MULTIINDEX_STRUCTURAL_LABEL, OUTPUT_COLUMN) in results.columns else str(results.iloc[0])
         assert isinstance(groups, (str, list))
     
     def test_ethane_smiles_cc(self, grouper_smarts_only, ethane_df):
@@ -38,14 +39,14 @@ class TestChemicalGrouperSMARTS:
         assert len(results) == 1
         
         # Check that required columns exist
-        assert 'SMILES' in results.columns
-        assert results['SMILES'].iloc[0] == 'CC'
+        assert (MULTIINDEX_IDENTIFIER_LABEL, SMILES_COLUMN) in results.columns
+        assert results[(MULTIINDEX_IDENTIFIER_LABEL, SMILES_COLUMN)].iloc[0] == 'CC'
         
         # Check that SMARTS grouping was applied
-        assert 'Chemical groups' in results.columns or any('group' in str(col).lower() for col in results.columns)
+        assert (MULTIINDEX_STRUCTURAL_LABEL, OUTPUT_COLUMN) in results.columns or any('group' in str(col).lower() for col in results.columns)
         
         # Ethane should contain carbon/alkane patterns
-        groups = results['Chemical groups'].iloc[0] if 'Chemical groups' in results.columns else str(results.iloc[0])
+        groups = results[(MULTIINDEX_STRUCTURAL_LABEL, OUTPUT_COLUMN)].iloc[0] if (MULTIINDEX_STRUCTURAL_LABEL, OUTPUT_COLUMN) in results.columns else str(results.iloc[0])
         assert isinstance(groups, (str, list))
     
     def test_grouping_config_smarts_only_mode(self):
@@ -66,7 +67,7 @@ class TestChemicalGrouperSMARTS:
         
         # Should still return results, but marked as not found
         assert len(results) == 1
-        assert results['SMILES'].iloc[0] == '[Invalid]'
+        assert results[(MULTIINDEX_IDENTIFIER_LABEL, SMILES_COLUMN)].iloc[0] == '[Invalid]'
 
     def test_methods_smarts_and_regex(self):
         """A config selecting SMARTS and REGEX should reflect both, but not LISTS."""
@@ -103,9 +104,9 @@ class TestChemicalGrouperSMARTS:
         results = grouper.group_chemicals()
 
         assert len(results) == 1
-        assert 'SMILES' in results.columns
-        assert results['SMILES'].iloc[0] == 'CC'
-        assert 'Chemical groups' in results.columns
+        assert (MULTIINDEX_IDENTIFIER_LABEL, SMILES_COLUMN) in results.columns
+        assert results[(MULTIINDEX_IDENTIFIER_LABEL, SMILES_COLUMN)].iloc[0] == 'CC'
+        assert (MULTIINDEX_STRUCTURAL_LABEL, OUTPUT_COLUMN) in results.columns
 
     def test_regex_requires_cas_column_for_smiles_input(self):
         """Regex selection should fail fast if CAS column is missing."""
@@ -233,8 +234,8 @@ class TestChemicalGrouperSMARTS:
         grouper = ChemicalGrouper(df=df, grouping_config=config)
         results = grouper.group_chemicals()
 
-        assert 'Contains C-C' in results.columns
-        assert 'Alkenes' not in results.columns
+        assert (MULTIINDEX_STRUCTURAL_LABEL, 'Contains C-C') in results.columns
+        assert (MULTIINDEX_STRUCTURAL_LABEL, 'Alkenes') not in results.columns
 
     def test_smarts_rejects_unknown_selected_fingerprints(self):
         """Unknown SMARTS fingerprint names in config should fail fast."""
@@ -275,8 +276,8 @@ class TestChemicalGrouperSMARTS:
 
         result = ChemicalGrouper(df=df, grouping_config=config).group_chemicals()
 
-        assert CAS_COLUMN in result.columns
-        assert result.loc[0, CAS_COLUMN] == '74-84-0'
+        assert (MULTIINDEX_IDENTIFIER_LABEL, CAS_COLUMN) in result.columns
+        assert result.loc[0, (MULTIINDEX_IDENTIFIER_LABEL, CAS_COLUMN)] == '74-84-0'
 
     def test_build_comptox_batches_enforces_strict_limit(self):
         """CompTox batches must satisfy len('\\n'.join(batch)) < 200 for each request."""

@@ -431,7 +431,7 @@ class ChemicalGrouper:
         }
         return filtered_fingerprints
     
-    def group_chemicals(self) -> pd.DataFrame:
+    def group_chemicals(self, save=True) -> pd.DataFrame:
         """
         Group chemicals based on their CAS IDs or SMILES strings using configured methods.
         
@@ -440,7 +440,7 @@ class ChemicalGrouper:
         missing for each specific chemical.
         
         Args:
-            None. Input identifiers are read directly from the configured
+            save (bool): Whether to save the results to an Excel file. Input identifiers are read directly from the configured
             resolver column in the DataFrame provided at initialization.
         
         Returns:
@@ -535,12 +535,16 @@ class ChemicalGrouper:
             print(f"  [OK] CompTox enrichment used for {comptox_used}/{len(df)} entries")
         
         df.fillna('', inplace=True)
-        
+
+        # Snapshot column count by position before each method step.
+        # Position-based tracking correctly labels columns even when names overlap across methods.
+        n_identifier = len(df.columns)
+
         # Track which methods are applied
         methods_applied = []
 
         smarts_fingerprints = self._smarts_fingerprints
-        
+
         # Step 1: Always apply SMARTS structural patterns (if config allows)
         if GroupingMethod.SMARTS in self.selected_methods:
             print("Step 1/3: Applying SMARTS structural patterns...")
@@ -552,13 +556,17 @@ class ChemicalGrouper:
                 fingerprints_dict=smarts_fingerprints,
             )
             methods_applied.append("SMARTS")
-        
+
+        n_after_smarts = len(df.columns)
+
         # Step 2: Optionally apply functional lists
         if GroupingMethod.LISTS in self.selected_methods:
             print("Step 2/3: Matching against functional lists...")
             df = self._apply_functional_lists(df, cas_column=CAS_COLUMN)
             methods_applied.append("Functional Lists")
-        
+
+        n_after_lists = len(df.columns)
+
         # Step 3: Optionally apply regex patterns
         if GroupingMethod.REGEX in self.selected_methods:
             print("Step 3/3: Applying regex patterns...")
@@ -576,12 +584,28 @@ class ChemicalGrouper:
                 smiles_column=regex_smiles_column,
             )
             methods_applied.append("Regex Patterns")
-        
+
+        n_after_regex = len(df.columns)
+
+        # Build MultiIndex labels by column position — each block is a contiguous slice
+        # of columns appended by that method, so there is no ambiguity from name overlap.
+        labels = (
+            [MULTIINDEX_IDENTIFIER_LABEL] * n_identifier
+            + [MULTIINDEX_STRUCTURAL_LABEL] * (n_after_smarts - n_identifier)
+            + [MULTIINDEX_LISTS_LABEL] * (n_after_lists - n_after_smarts)
+            + [MULTIINDEX_REGEX_LABEL] * (n_after_regex - n_after_lists)
+        )
+        df.columns = pd.MultiIndex.from_tuples(zip(labels, df.columns))
+
         print(f"\n{'='*60}")
         print(f"Grouping completed successfully!")
         print(f"Applied methods: {', '.join(methods_applied)}")
         print(f"{'='*60}\n")
 
+        if save:
+            excel_filename = f"Grouping.xlsx"
+            with pd.ExcelWriter(excel_filename) as writer:    # Write DataFrames to the workbook
+                df.to_excel(writer)
         return df
     
     def _apply_structural_patterns(

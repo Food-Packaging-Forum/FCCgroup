@@ -325,7 +325,7 @@ fingerprints: Dict[str, Union[str, Callable]] = {
         'Salicylates derivatives': '[#8][#6](=[#8])c1[c&H1][c&H1][c&H1][c&H1]c1([#8])',
         'Ortho-phthalates': '[#8][#6](=[#8])c1[c&H1][c&H1][c&H1][c&H1]c1[#6](=[#8])[#8]',
         'Ortho-phthalates derivatives (no rings)': '[#8][#6](=[#8])c1ccccc1[#6](=[#8])[#8]',
-        'Cyclohexane-1,2-dicarboxylates': '[#8][C](=[#8])C1[C&H1][C&H1][C&H1][C&H1]C1[C](=[#8])[#8]',
+        'Cyclohexane-1,2-dicarboxylates': '[#8][C](=[#8])[C&H1]1[C&H2][C&H2][C&H2][C&H2][C&H1]1[C](=[#8])[#8]',
         'Isophthalates': '[#8][#6](=[#8])c1[c&H1][c&H1][c&H1]c([#6](=[#8])[#8])[c&H1]1',
         'Isophthalates derivatives (no rings)': '[#8][#6](=[#8])c1cccc([#6](=[#8])[#8])c1',
         'Terephthalates': '[#8][#6](=[#8])c1[c&H1][c&H1]c([#6](=[#8])[#8])[c&H1][c&H1]1',

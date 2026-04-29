@@ -166,6 +166,17 @@ PLASTCHEM_COLUMNS_KEY: Final[str] = "PlastChem_columns"
 FUNCTION_SYNONYMS_G4_KEY: Final[str] = "function_synonyms_g4"
 FUNCTION_SYNONYMS_REGEX_KEY: Final[str] = "function_synonyms_regex"
 
+
+# ============================================================================
+# MULTIINDEX COLUMN GROUP LABELS
+# ============================================================================
+
+MULTIINDEX_IDENTIFIER_LABEL: Final[str] = "Identifier"
+MULTIINDEX_STRUCTURAL_LABEL: Final[str] = "Structural patterns"
+MULTIINDEX_LISTS_LABEL: Final[str] = "Lists"
+MULTIINDEX_REGEX_LABEL: Final[str] = "Regex"
+
+
 # ============================================================================
 # COMPTOX CONFIGURATION
 # ============================================================================

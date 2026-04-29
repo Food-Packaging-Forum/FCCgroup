@@ -7,6 +7,7 @@ import pytest
 
 from fccgroup import ChemicalGrouper, GroupingConfig, GroupingMethod, ColumnMapping
 from fccgroup.constants import *
+from fccgroup.constants import MULTIINDEX_IDENTIFIER_LABEL, MULTIINDEX_STRUCTURAL_LABEL
 
 
 def _one_chemical_df() -> pd.DataFrame:
@@ -54,9 +55,9 @@ def test_grouping_smarts_only_one_chemical() -> None:
     print(result)
         
     assert len(result) == 1
-    assert "SMILES" in result.columns
-    assert result.loc[0, "SMILES"] == "CC"
-    assert "Chemical groups" in result.columns
+    assert (MULTIINDEX_IDENTIFIER_LABEL, SMILES_COLUMN) in result.columns
+    assert result.loc[0, (MULTIINDEX_IDENTIFIER_LABEL, SMILES_COLUMN)] == "CC"
+    assert (MULTIINDEX_STRUCTURAL_LABEL, OUTPUT_COLUMN) in result.columns
     assert result.attrs.get("grouping_methods_applied") is None
 
 
@@ -88,8 +89,8 @@ def test_grouping_lists_only_one_chemical() -> None:
     print(result)
     
     assert len(result) == 1
-    assert "SMILES" in result.columns
-    assert result.loc[0, "SMILES"] == "CC"
+    assert (MULTIINDEX_IDENTIFIER_LABEL, SMILES_COLUMN) in result.columns
+    assert result.loc[0, (MULTIINDEX_IDENTIFIER_LABEL, SMILES_COLUMN)] == "CC"
     assert result.attrs.get("grouping_methods_applied") is None
 
 
@@ -101,8 +102,8 @@ def test_grouping_regex_only_one_chemical() -> None:
     print(result)
     
     assert len(result) == 1
-    assert "SMILES" in result.columns
-    assert result.loc[0, "SMILES"] == "CC"
+    assert (MULTIINDEX_IDENTIFIER_LABEL, SMILES_COLUMN) in result.columns
+    assert result.loc[0, (MULTIINDEX_IDENTIFIER_LABEL, SMILES_COLUMN)] == "CC"
     assert result.attrs.get("grouping_methods_applied") is None
 
 
@@ -114,7 +115,7 @@ def test_grouping_smarts_and_regex_one_chemical() -> None:
     print(result)
     
     assert len(result) == 1
-    assert "SMILES" in result.columns
-    assert result.loc[0, "SMILES"] == "CC"
-    assert "Chemical groups" in result.columns
+    assert (MULTIINDEX_IDENTIFIER_LABEL, SMILES_COLUMN) in result.columns
+    assert result.loc[0, (MULTIINDEX_IDENTIFIER_LABEL, SMILES_COLUMN)] == "CC"
+    assert (MULTIINDEX_STRUCTURAL_LABEL, OUTPUT_COLUMN) in result.columns
     assert result.attrs.get("grouping_methods_applied") is None
