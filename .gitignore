@@ -6,6 +6,7 @@ dist/
 __pycache__/
 *.py[cod]
 *$py.class
+.env
 
 # Packages
 *.egg-info/
