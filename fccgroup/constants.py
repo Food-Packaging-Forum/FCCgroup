@@ -209,7 +209,7 @@ ASSETS_DIR: Final[Path] = Path(__file__).parent / "assets"
 
 # Asset subdirectories
 LISTS_DIR: Final[Path] = ASSETS_DIR / "lists"
-FCC_UNIVERSE_FILE: Final[Path] = ASSETS_DIR / "grouped_chemicals.xlsx"
+FCC_UNIVERSE_FILE: Final[Path] = Path(__file__).parent / ".." / "tests" / "grouped_chemicals.xlsx"
 
 
 # ============================================================================
