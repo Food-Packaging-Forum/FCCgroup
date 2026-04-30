@@ -137,6 +137,8 @@ def generate_parent_groups(
     """
     new_cols = {}
     for parent, children in group_dictionary.items():
+        if not parent:
+            continue
         # Validate that child columns exist
         if not all(child in df.columns for child in children):
             raise KeyError(f"Child columns {children} not found in DataFrame")
