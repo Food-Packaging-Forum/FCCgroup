@@ -702,8 +702,12 @@ individual_lists: Final[Dict[str, Dict[str, List[str]]]] = {
 # Structure: {parent_group: [component1, component2, ...], ...}
 
 regex_combination_dictionary: Final[Dict[str, List[str]]] = {
+    "Metal_Metalloid": [
+        'Metal',
+        'Metalloid'
+    ],
     "OrganoMetallic": [
-        'Metal_Metalloid', 
+        'Metal_Metalloid',
         'Carbon'
     ],
 
