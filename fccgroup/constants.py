@@ -33,12 +33,14 @@ FORMULA_COLUMN: Final[str] = "formula"
 ENRICHED_NAME_COLUMNS_COLUMN: Final[str] = "column_names"
 COMBINED_NAME_COLUMN: Final[str] = "name"
 MOLECULAR_FORMULA_COLUMN: Final[str] = "MolFormula"
-SMILES_CHECK_COLUMN: Final[str] = "SMILES_check"
+SMILES_CHECK_COLUMN: Final[str] = "SMILES check"
+NOT_GROUPABLE_COLUMN: Final[str] = "Not groupable"
 STRUCTURAL_MATCHES_COUNT_COLUMN: Final[str] = "structural_matches_count"
 FINGERPRINT_ID_COLUMN: Final[str] = "ID"
 
 # Output/grouping columns
 OUTPUT_COLUMN: Final[str] = "Chemical groups"
+GROUPS_CONCERN_COLUMN: Final[str] = "Groups of concern"
 GROUPS_COLUMN: Final[str] = "groups"
 FUNCTION_GROUP_COLUMN: Final[str] = "function_group_in"
 
@@ -56,7 +58,7 @@ REGEX_KEYWORD_COLUMN: Final[str] = "keyword"
 REGEX_COLUMN_NAME_COLUMN: Final[str] = "column_name"
 REGEX_KEYWORD_LOCATION_COLUMN: Final[str] = "keyword_loc"
 REGEX_KEYWORD_TYPE_COLUMN: Final[str] = "keyword_type"
-REGEX_GROUP_COLUMN: Final[str] = "Group_key"
+REGEX_GROUP_COLUMN: Final[str] = "Group_name"
 REGEX_SUPER_GROUP_COLUMN: Final[str] = "Supergroup"
 REGEX_PATTERN_TYPE: Final[str] = "regex"
 
@@ -64,6 +66,97 @@ REGEX_PATTERN_TYPE: Final[str] = "regex"
 CAS_VALID_COLUMN: Final[str] = "cas_valid"
 CAS_VALID_FORMAT_COLUMN: Final[str] = "cas_valid_format"
 
+# ============================================================================
+# GROUPS OF CONCERN
+# ============================================================================
+
+GROUPS_CONCERN_DICT = {
+    'Inorganic compounds': {
+            'Elements (loose)': 'Elements (loose)',
+            'Inorganic salt (no C)': 'Inorganic salt (no C)',
+            'Inorganic other': 'Inorganic other',
+            'Contains toxic heavy metal (As, Cd, Cr, Pb, Hg, Ni)': 'Contains toxic heavy metal (As, Cd, Cr, Pb, Hg, Ni)',
+            'Contains B': 'Contains B',
+            'Contains perchlorate': 'Contains perchlorate',
+    },
+    'Organometallic compounds': {
+            'Organosiloxanes': 'Organosiloxanes',
+            'Contains Organo Sn': 'Contains Organo Sn',
+            'Other organometallic compounds': 'Other organometallic compounds',
+    },
+    'Hydrocarbons': {
+            'PAH derivatives hydrocarbon': 'PAH derivatives hydrocarbon',
+            'Biphenyls/Terphenyls': 'Biphenyls/Terphenyls',
+            'Benzoids': 'Benzoids',
+            'Alkanes': 'Alkanes',
+    },
+    'Organooxygen compounds': {
+            'Benzofuran derivatives': 'Benzofuran derivatives',
+            'Alkyl phenol derivatives': 'Alkyl phenol derivatives',
+            'Hindered phenol derivatives': 'Hindered phenol derivatives',
+            'Bisphenol derivatives': 'Bisphenol derivatives',
+            'Other phenol derivatives': 'Other phenol derivatives',
+            'Aromatic ethers or alcohols (loose)': 'Aromatic ethers or alcohols (loose)',
+            'Acetophenone derivatives': 'Acetophenone derivatives',
+            'Benzophenone derivatives': 'Benzophenone derivatives',
+            'Benzoquinone backbone': 'Benzoquinone backbone',
+            'Other benzylketone derivatives': 'Other benzylketone derivatives',
+            'Parabens derivatives': 'Parabens derivatives',
+            'Salicylates derivatives': 'Salicylates derivatives',
+            'Ortho-phthalates': 'Ortho-phthalates',
+            'Terephthalates': 'Terephthalates',
+            'Adipic acid esters': 'Adipic acid esters',
+            'Citric acid esters': 'Citric acid esters',
+            'Triglyceride': 'Triglyceride',
+            'Aliphatic carbonyls (loose)': 'Aliphatic carbonyls (loose)',
+    },
+    'Organonitrogen compounds': {
+            'Imidazole': 'Imidazole',
+            'Benzotriazoles derivatives': 'Benzotriazoles derivatives',
+            'Contains imine': 'Contains imine',
+            'Contains isocyanate': 'Contains isocyanate',
+            'Contains azo': 'Contains azo',
+            'Contains nitrile': 'Contains nitrile',
+            'Contains nitro': 'Contains nitro',
+            'Contains nitrosamine': 'Contains nitrosamine',
+            'Primary aromatic amines': 'Primary aromatic amines',
+            'Secondary aromatic amines': 'Secondary aromatic amines',
+            'Tertiary aromatic amines': 'Tertiary aromatic amines',
+            'Aliphatic amines (loose)': 'Aliphatic amines (loose)',
+            'Aliphatic amides (loose)': 'Aliphatic amides (loose)',
+    },
+    'Organophosphorus compounds': {
+            'Organophosphates': 'Organophosphates',
+            'Organophosphites': 'Organophosphites',
+    },    
+    'Organosulfur compounds': {
+            'Benzothiazoles derivatives': 'Benzothiazoles derivatives',
+            'Contains thiol': 'Contains thiol',
+            'Contains sulfate': 'Contains sulfate',
+            'Contains sulfinate': 'Contains sulfinate',
+            'Contains dithiocarbamate': 'Contains dithiocarbamate',
+            'Contains S-C-N': 'Contains S-C-N',
+    },
+    'Organohalogen compounds': {
+            'PFAS': 'PFAS',
+            'Chlorinated alkanes': 'Chlorinated alkanes',
+            'Chlorinated alkenes': 'Chlorinated alkenes',
+            'PCBs': 'PCBs',
+            'Other organochlorine compounds': 'Other organochlorine compounds',
+            'PBDEs': 'PBDEs',
+            'PBBs': 'PBBs',
+            'Other organobromine compounds': 'Other organobromine compounds',
+            'Contains Organo I': 'Contains Organo I',
+        },
+}
+
+
+GROUPS_CONCERN = []
+RENAME_GROUPS_CONCERN = {}
+for group_dict in GROUPS_CONCERN_DICT.values():
+    for group, renamed_group in group_dict.items():
+        GROUPS_CONCERN.append(group)
+        RENAME_GROUPS_CONCERN[group] = renamed_group
 
 # ============================================================================
 # MAPPING FILE CONFIGURATION
