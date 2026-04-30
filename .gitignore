@@ -11,3 +11,6 @@ __pycache__/
 # Packages
 *.egg-info/
 *.egg
+
+# Test generated files
+*_comparison.xlsx
