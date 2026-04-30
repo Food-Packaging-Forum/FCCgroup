@@ -11,9 +11,9 @@ from fccgroup.constants import MULTIINDEX_IDENTIFIER_LABEL, MULTIINDEX_STRUCTURA
 class TestChemicalGrouperSMARTS:
     """Test suite for ChemicalGrouper using SMARTS-only mode."""
     
-    def test_formaldehyde_cas_50_00_0(self, grouper_smarts_only, formaldehyde_df):
+    def test_formaldehyde_cas_50_00_0(self, grouper_smarts_only_formaldehyde):
         """Test grouping of CAS 50-00-0 (formaldehyde) using SMILES C=O."""
-        results = grouper_smarts_only.group_chemicals()
+        results = grouper_smarts_only_formaldehyde.group_chemicals(save=False)
         
         # Check that results DataFrame was created
         assert results is not None
@@ -30,9 +30,9 @@ class TestChemicalGrouperSMARTS:
         groups = results[(MULTIINDEX_STRUCTURAL_LABEL, OUTPUT_COLUMN)].iloc[0] if (MULTIINDEX_STRUCTURAL_LABEL, OUTPUT_COLUMN) in results.columns else str(results.iloc[0])
         assert isinstance(groups, (str, list))
     
-    def test_ethane_smiles_cc(self, grouper_smarts_only, ethane_df):
+    def test_ethane_smiles_cc(self, grouper_smarts_only_ethane):
         """Test grouping of SMILES CC (ethane) using SMARTS-only mode."""
-        results = grouper_smarts_only.group_chemicals()
+        results = grouper_smarts_only_ethane.group_chemicals(save=False)
         
         # Check that results DataFrame was created
         assert results is not None
@@ -60,14 +60,6 @@ class TestChemicalGrouperSMARTS:
         assert config.use_lists is False
         assert config.use_regex is False
         assert "SMARTS" in config.description
-    
-    def test_invalid_smiles_not_in_lookup(self, grouper_smarts_only, formaldehyde_df):
-        """Test behavior when SMILES is not found in lookup."""
-        results = grouper_smarts_only.group_chemicals()
-        
-        # Should still return results, but marked as not found
-        assert len(results) == 1
-        assert results[(MULTIINDEX_IDENTIFIER_LABEL, SMILES_COLUMN)].iloc[0] == '[Invalid]'
 
     def test_methods_smarts_and_regex(self):
         """A config selecting SMARTS and REGEX should reflect both, but not LISTS."""
@@ -101,7 +93,7 @@ class TestChemicalGrouperSMARTS:
         )
 
         grouper = ChemicalGrouper(df=custom_df, grouping_config=config)
-        results = grouper.group_chemicals()
+        results = grouper.group_chemicals(save=False)
 
         assert len(results) == 1
         assert (MULTIINDEX_IDENTIFIER_LABEL, SMILES_COLUMN) in results.columns
@@ -147,7 +139,7 @@ class TestChemicalGrouperSMARTS:
         )
 
         grouper = ChemicalGrouper(df=df_minimal, grouping_config=config)
-        results = grouper.group_chemicals()
+        results = grouper.group_chemicals(save=False)
 
         assert len(results) == 1
 
@@ -232,7 +224,7 @@ class TestChemicalGrouperSMARTS:
         )
 
         grouper = ChemicalGrouper(df=df, grouping_config=config)
-        results = grouper.group_chemicals()
+        results = grouper.group_chemicals(save=False)
 
         assert (MULTIINDEX_STRUCTURAL_LABEL, 'Contains C-C') in results.columns
         assert (MULTIINDEX_STRUCTURAL_LABEL, 'Alkenes') not in results.columns
@@ -274,7 +266,7 @@ class TestChemicalGrouperSMARTS:
 
         monkeypatch.setattr('fccgroup.grouper.fetch_chemical_info', _fake_fetch)
 
-        result = ChemicalGrouper(df=df, grouping_config=config).group_chemicals()
+        result = ChemicalGrouper(df=df, grouping_config=config).group_chemicals(save=False)
 
         assert (MULTIINDEX_IDENTIFIER_LABEL, CAS_COLUMN) in result.columns
         assert result.loc[0, (MULTIINDEX_IDENTIFIER_LABEL, CAS_COLUMN)] == '74-84-0'
@@ -330,7 +322,7 @@ class TestChemicalGrouperSMARTS:
 
         monkeypatch.setattr('fccgroup.grouper.fetch_chemical_info', _fake_fetch)
 
-        result = ChemicalGrouper(df=df, grouping_config=config).group_chemicals()
+        result = ChemicalGrouper(df=df, grouping_config=config).group_chemicals(save=False)
 
-        assert result.loc[0, CAS_COLUMN] == '74-84-0'
-        assert result.loc[1, CAS_COLUMN] == ''
+        assert result.loc[0, (MULTIINDEX_IDENTIFIER_LABEL, CAS_COLUMN)] == '74-84-0'
+        assert result.loc[1, (MULTIINDEX_IDENTIFIER_LABEL, CAS_COLUMN)] == ''

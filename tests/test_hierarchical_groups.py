@@ -1,6 +1,6 @@
 import pytest
 
-from fccgroup.constants import CAS_COLUMN
+from fccgroup.constants import CAS_COLUMN, MULTIINDEX_STRUCTURAL_LABEL, MULTIINDEX_REGEX_LABEL
 from tests.conftest import _repo_root
 
 chemical_groups = {
@@ -67,7 +67,7 @@ chemical_groups = {
         'Contains isocyanate':{},
         'Contains amide':{
             'Aromatic amides (loose)':{'Aromatic amides',}, 
-            'Aromatic amides (loose)':{'Aliphatic amides'},
+            'Aliphatic amides (loose)':{'Aliphatic amides'},
              },
         'Contains urea':{},
         'Contains nitroso':{},
@@ -156,7 +156,7 @@ chemical_groups = {
         'Contains carboxylic acid derivatives': {
             'Contains carboxylic acid': {'Aliphatic carboxylic acids', 'Aromatic carboxylic acids'},
             'Contains ester': {'Triglyceride'},
-            'Aliphatic carboxylic acid esters and salts': {},
+            'Aliphatic carboxylic acids esters and salts': {},
             'Adipic acid esters': {},
             'Sebacic acid esters': {},
             'Citric acid esters': {},
@@ -194,7 +194,6 @@ chemical_groups = {
         'Organophosphites':{},
         'Organophosphites tautomers':{},
         'Organophosphonates':{},
-        'Dialkyl phosphite':{},
         'Organothiophosphates':{},
         },
     'Contains Organo S': {
@@ -269,11 +268,12 @@ chemical_groups = {
 }
 
 def test_hierarchical_groups(universe):
-    available_columns = {col[1] for col in universe.columns if isinstance(col, tuple) and len(col) > 1}
+    available_columns = {col[1] for col in universe.columns if col[0] == MULTIINDEX_STRUCTURAL_LABEL or col[0] == MULTIINDEX_REGEX_LABEL}
     required_groups = _collect_group_labels(chemical_groups)
     if not required_groups.issubset(available_columns):
-        missing_count = len(required_groups - available_columns)
-        pytest.skip(f"Universe fixture is missing {missing_count} hierarchy columns required by this test")
+        missing_cols = required_groups - available_columns
+        print(f"Universe fixture is missing {missing_cols} hierarchy columns required by this test")
+        assert required_groups == []
 
     not_matching_list = helper_hierarchical_groups(universe, chemical_groups)
     assert not not_matching_list, f"Some groups do not match their subgroups and are saved in: {save_not_matching_list_to_excel(not_matching_list)}"

@@ -13,15 +13,25 @@ from fccgroup.data.constants import regex_combination_dictionary as regex_combo_
 
 
 @pytest.fixture
-def grouper_smarts_only():
+def grouper_smarts_only_formaldehyde(formaldehyde_df):
     """Create a ChemicalGrouper configured with the SMARTS method only."""
-    fitted_df = pd.DataFrame({
-        SMILES_COLUMN: ['CC'],
-        CAS_COLUMN: ['74-84-0'],
-        'Name': ['ethane'],
-        'IUPAC': ['ethane'],
-        'Formula': ['C2H6'],
-    })
+    fitted_df = formaldehyde_df.copy()
+    config = GroupingConfig(
+        methods=[GroupingMethod.SMARTS],
+        column_mapping=ColumnMapping(
+            cas=None,
+            smiles=SMILES_COLUMN,
+            name_columns=["Name", "IUPAC"],
+            formula="Formula",
+        ),
+    )
+    return ChemicalGrouper(df=fitted_df, grouping_config=config)
+
+
+@pytest.fixture
+def grouper_smarts_only_ethane(ethane_df):
+    """Create a ChemicalGrouper configured with the SMARTS method only."""
+    fitted_df = ethane_df.copy()
     config = GroupingConfig(
         methods=[GroupingMethod.SMARTS],
         column_mapping=ColumnMapping(
@@ -142,7 +152,7 @@ def regex_reference_df(universe: pd.DataFrame) -> pd.DataFrame:
     if not regex_cols:
         pytest.skip("No regex columns found in universe fixture")
 
-    out = universe[[('Identifier', CAS_COLUMN)] + [("Regex", col[1]) for col in regex_cols]].copy()
+    out = universe[[('Identifier', CAS_COLUMN)] + regex_cols].copy()
     out.columns = [CAS_COLUMN] + [col[1] for col in regex_cols]
     return out
 

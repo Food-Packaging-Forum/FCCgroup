@@ -37,7 +37,7 @@ def _run_grouping(methods: list[GroupingMethod]) -> pd.DataFrame:
 
     fitted_df = _one_chemical_df()
     grouper = ChemicalGrouper(df=fitted_df, grouping_config=config)
-    return grouper.group_chemicals()
+    return grouper.group_chemicals(save=False)
 
 
 def _has_lists_and_regex_assets() -> bool:
@@ -76,7 +76,7 @@ def test_grouping_filters_out_unmapped_input_columns() -> None:
         ),
     )
 
-    result = ChemicalGrouper(df=fitted_df, grouping_config=config).group_chemicals()
+    result = ChemicalGrouper(df=fitted_df, grouping_config=config).group_chemicals(save=False)
 
     assert "ExternalMetadata" not in result.columns
 
