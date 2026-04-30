@@ -345,6 +345,15 @@ class ChemicalGrouper:
                 missing.add(FORMULA_COLUMN)
 
         return missing
+    
+    def _validate_groups_concern(self, group_list: Optional[Union[str, List[str]]]) -> Set[str]:
+        """Validate that provided groups of concern are present in the grouping results."""
+        calculable_groups = set()
+        for group in group_list:
+            if group in GROUPS_CONCERN:
+                calculable_groups.add(group)
+        return list(calculable_groups)
+
 
     @staticmethod
     def _build_comptox_batches(
@@ -646,6 +655,7 @@ class ChemicalGrouper:
         
         # Validate SMILES
         df[SMILES_CHECK_COLUMN] = df[smiles_column].apply(lambda x: smiles_check(x))
+        df[NOT_GROUPABLE_COLUMN] = ~df[SMILES_CHECK_COLUMN]
         
         # Apply fingerprints in parallel
         rows = list(df.iterrows())
@@ -683,6 +693,18 @@ class ChemicalGrouper:
             lambda x: ",".join([name for name, val in x.items() if val and not pd.isna(val)]),
             axis=1
         )
+
+        calculable_groups_concern = self._validate_groups_concern(df[OUTPUT_COLUMN].str.split(",").explode().unique())
+        df[GROUPS_CONCERN_COLUMN] = df[OUTPUT_COLUMN].apply(
+            lambda x: ", ".join(
+                [
+                    group.strip()
+                    for group in x.split(",")
+                    if group.strip() in calculable_groups_concern
+                ]
+            )
+        )
+
 
         print(f"  [OK] Processed {len(df)} chemicals for structural patterns")
         return df
@@ -1017,6 +1039,8 @@ class ChemicalGrouper:
                         lambda x: combine_groups(x, children), axis=1
                     )
                     combinations_applied += 1
+                else:
+                    print("At least one of the columns is not in the dataset: ", children)
             
             if combinations_applied > 0:
                 print(f"  [OK] Applied {combinations_applied} combination rules (OrganoMetallic, Salts)")
