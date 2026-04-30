@@ -13,12 +13,13 @@ Contains ~400+ chemical substructure patterns covering:
 - Organometallics and element-specific patterns
 """
 
+import inspect
+
 import pandas as pd
 from typing import Optional, Union, Callable, Dict
 
 from rdkit import Chem
 from rdkit.Chem import rdGeneralizedSubstruct
-from sklearn.calibration import signature
 
 from ..data.constants import elements
 
@@ -86,7 +87,7 @@ def apply_pattern(mol: Chem.Mol, pattern: Union[str, Callable], row: Optional[pd
         return mol.HasSubstructMatch(pattern_mol)
     else:
         # Use inspect.signature to determine parameter count
-        sig = signature(pattern)
+        sig = inspect.signature(pattern)
         param_count = len(sig.parameters)
         
         if param_count == 1:
@@ -226,7 +227,6 @@ fingerprints: Dict[str, Union[str, Callable]] = {
     'Elements (strict)': lambda x, row: len(row["Molecular Composition"].keys()) == 1 and row["Molecular Composition"][list(row["Molecular Composition"].keys())[0]] == 1,
     'Inorganic compound': lambda x, row: row["Contains C"] == 0,
         'Inorganic salt (no C)': lambda x, row: row["Inorganic compound"] and row["Salt"],
-        'Inorganic salt (no CH bond)': lambda x, row: row["Contains C~H"] == 0 and row["Salt"],
         'Inorganic other': lambda x, row: row["Inorganic compound"] and not row["Elements (loose)"] and not row["Inorganic salt (no C)"],
     'Contains Hydrocarbons': lambda x, row: {'C','H'}.issubset(row["Molecular Composition"]),
         'Hydrocarbons': lambda x, row: set(row["Molecular Composition"]) == {"C", "H"},
@@ -446,8 +446,8 @@ fingerprints: Dict[str, Union[str, Callable]] = {
         'Oxalanilides': 'c1ccccc1-[#7][#6](=[#8])[#6](=[#8])[#7]-c2ccccc2',
         'Acridanone': 'c1cccc2c1[#7]c3ccccc3[#6](=[#8])2',
         'Acridanone derivatives': '[#6]1~[#6]~[#6]~[#6]~[#6]2~[#6]~1~[#7]~[#6]3~[#6]~[#6]~[#6]~[#6]~[#6]~3~[#6](=[#8])~2',
-        'Aromatic amides (loose)': lambda x, row: row["Organo N (strict)"] and row["Organo O (strict)"] and row["Contains aromatic C"] != 0 and 
-                                    row["Contains amide"] == row["Contains N"] == row["Contains O"],
+        'Aromatic amides (loose)': lambda x, row: set(row["Molecular Composition"].keys()).issubset({"C", "N", "O", "H"}) and 
+                                    row["Contains aromatic C"] != 0 and row["Contains amide"] == row["Contains N"] == row["Contains O"],
         'Aromatic amides': lambda x, row: set(row["Molecular Composition"].keys()).issubset({"C", "N", "O", "H"})
                                     and row["Contains aromatic C"] != 0 and row["Contains amide"] != 0 
                                     and row["Contains O"] == 1 and row["Contains N"] == 1,
