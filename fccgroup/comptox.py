@@ -1,6 +1,7 @@
 """CompTox API integration helpers."""
 
-from typing import Any, Dict, List, Optional, Set, Union
+import time
+from typing import Any, Dict, List, Optional, Union
 import os
 
 import requests
@@ -25,21 +26,44 @@ HEADERS = {
     "x-api-key": API_KEY,
 }
 
+_RATE_LIMIT_INTERVAL = 1.0 / 5  # 5 requests per second
+_last_request_time: float = 0.0
+
+
 def _is_missing_value(value: Any) -> bool:
     if value is None:
         return True
     return str(value).strip() == ""
 
-# TODO: handle request errors
+
+def _rate_limit() -> None:
+    global _last_request_time
+    elapsed = time.monotonic() - _last_request_time
+    if elapsed < _RATE_LIMIT_INTERVAL:
+        time.sleep(_RATE_LIMIT_INTERVAL - elapsed)
+    _last_request_time = time.monotonic()
+
+
+def _post_with_retry(url: str, max_retries: int = 1, **kwargs) -> requests.Response:
+    for attempt in range(max_retries + 1):
+        _rate_limit()
+        try:
+            response = requests.post(url, headers=HEADERS, **kwargs)
+            response.raise_for_status()
+            return response
+        except Exception:
+            if attempt >= max_retries:
+                raise
+            time.sleep(2.0)
+    raise RuntimeError("unreachable")
+
 
 def _fetch_dtxcid_records(identifiers: List[str]) -> List[str]:
-    response = requests.post(
+    response = _post_with_retry(
         COMPTOX_SEARCH_EQUAL_URL,
-        headers=HEADERS,
         data="\n".join(identifiers).strip(),
         timeout=30,
     )
-    response.raise_for_status()
     dtxcids = []
     for entry in response.json():
         dtxcids.append(entry["dtxcid"])
@@ -47,14 +71,12 @@ def _fetch_dtxcid_records(identifiers: List[str]) -> List[str]:
 
 
 def _fetch_detailed_record(dtxcids: List[str], identifiers: List[str]) -> Dict[str, Dict[str, Any]]:
-    response = requests.post(
+    response = _post_with_retry(
         COMPTOX_DTXCID_DETAIL_URL,
-        headers=HEADERS,
         json=dtxcids,
         timeout=30,
     )
-    response.raise_for_status()
-    
+
     data: Dict[str, Dict[str, Any]] = {}
 
     records = response.json()
@@ -90,19 +112,26 @@ def fetch_chemical_info(
     if not API_KEY:
         raise ValueError("CompTox API key is not set in environment variable 'COMPTOX_API_KEY'")
 
-    try:
-        dtxcids = _fetch_dtxcid_records(identifiers)
+    identifiers = [id for id in identifiers if not _is_missing_value(id)]
+    if not identifiers:
+        return {}
 
-        results = {identifier: {
+    results: Dict[str, Any] = {
+        identifier: {
             CAS_COLUMN: None,
             SMILES_COLUMN: None,
             ENRICHED_NAME_COLUMNS_COLUMN: None,
             FORMULA_COLUMN: None,
-        } for identifier in identifiers}
+        }
+        for identifier in identifiers
+    }
+
+    try:
+        dtxcids = _fetch_dtxcid_records(identifiers)
 
         if not dtxcids:
             return results
-        
+
         found_dtxcids = []
         found_identifiers = []
         for i, dtxcid in enumerate(dtxcids):
