@@ -105,7 +105,8 @@ def _fetch_detailed_record(dtxcids: List[str], identifiers: List[str]) -> Dict[s
 
 
 def fetch_chemical_info(
-    identifiers: List[str]
+    identifiers: List[str],
+    verbose: bool = False
 ) -> Dict[str, Optional[Union[str, List[str]]]]:
     """Fetch missing chemical information from EPA CompTox using DTXCID detail lookups."""
 
@@ -147,6 +148,7 @@ def fetch_chemical_info(
         results.update(detailed_records)
 
     except Exception as e:
-        print(f"  [WARN] Could not fetch data for {identifiers}: {str(e)}")
+        if verbose:
+            print(f"  [WARN] Could not fetch data for {identifiers}: {str(e)}")
 
     return results

@@ -13,7 +13,7 @@ import pandas as pd
 from ..constants import *
 
 
-def harmonize_cas_columns(all_lists: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
+def harmonize_cas_columns(all_lists: Dict[str, pd.DataFrame], verbose: bool = False) -> Dict[str, pd.DataFrame]:
     """
     Harmonize CAS column names across all functional lists.
     
@@ -32,7 +32,7 @@ def harmonize_cas_columns(all_lists: Dict[str, pd.DataFrame]) -> Dict[str, pd.Da
     Returns:
         Dictionary with standardized CAS column names and cleaned CAS numbers
     """
-    all_lists = unify_cas_columns(lists=all_lists, cas_column_names=CAS_COLUMN_ALIASES)
+    all_lists = unify_cas_columns(lists=all_lists, cas_column_names=CAS_COLUMN_ALIASES, verbose=verbose)
 
     for list_name, col_name in SPECIAL_CAS_RENAME_COLUMNS.items():
         if list_name in all_lists:
@@ -80,7 +80,8 @@ def harmonize_cas_columns(all_lists: Dict[str, pd.DataFrame]) -> Dict[str, pd.Da
 
 def unify_cas_columns(
     lists: Dict[str, pd.DataFrame],
-    cas_column_names: List[str]
+    cas_column_names: List[str],
+    verbose: bool = False
 ) -> Dict[str, pd.DataFrame]:
     """
     Standardizes CASRN columns across multiple DataFrames.
@@ -122,11 +123,13 @@ def unify_cas_columns(
         columns_lower = [str(col).lower() for col in df_copy.columns]
         overlap = set(cas_column_names) & set(columns_lower)
         overlap = [col for col in df_copy.columns if str(col).lower() in overlap]  # Preserve case-sensitivity
-        if len(overlap) == 0: 
-            print(f"\n{curr_list}: FALSE \n{list(df_copy.columns)}")
-        
-        if len(overlap) > 1: 
-            print(f"\n{curr_list}: WARNING: More than one CASRN column found \n{overlap}")
+        if len(overlap) == 0:
+            if verbose:
+                print(f"\n{curr_list}: FALSE \n{list(df_copy.columns)}")
+
+        if len(overlap) > 1:
+            if verbose:
+                print(f"\n{curr_list}: WARNING: More than one CASRN column found \n{overlap}")
 
         # Rename CASRN columns to the canonical CAS column
         if len(overlap) == 1:

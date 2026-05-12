@@ -310,7 +310,7 @@ class TestChemicalGrouperSMARTS:
             lambda self, df, cas_column: df,
         )
 
-        def _fake_fetch(identifiers):
+        def _fake_fetch(identifiers, verbose=False):
             if identifiers and identifiers[0].startswith('B'):
                 raise RuntimeError('simulated batch failure')
             return {
