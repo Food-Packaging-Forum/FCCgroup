@@ -12,7 +12,6 @@ from typing import Dict, List, Union
 
 import pandas as pd
 import numpy as np
-import re
 
 from ..constants import *
 
@@ -47,26 +46,44 @@ def apply_simple_regex(df: pd.DataFrame, regex_df: pd.DataFrame) -> pd.DataFrame
     if not all(col in regex_df.columns for col in required_cols):
         raise KeyError(f"regex_df must contain columns: {required_cols}")
     
-    # Iterate through the regex patterns and apply them to the data
-    data = {}
-    for _, row in regex_df.iterrows():
-        keyword = row[REGEX_KEYWORD_COLUMN]
-        group_name = row[REGEX_COLUMN_NAME_COLUMN]
-        column_to_check = row[REGEX_KEYWORD_LOCATION_COLUMN]
-        is_regex = row[REGEX_KEYWORD_TYPE_COLUMN] == REGEX_PATTERN_TYPE
-        
-        if is_regex:
-            # Compile pattern for performance
-            pattern = re.compile(keyword, re.IGNORECASE)
-            data[group_name] = df[column_to_check].apply(
-                lambda x: bool(pattern.search(str(x))) if pd.notna(x) else False
-            ).values
+    string_cache: Dict[str, pd.Series] = {}
+    lowercase_cache: Dict[str, pd.Series] = {}
+    data: Dict[str, np.ndarray] = {}
+
+    for keyword, group_name, column_to_check, keyword_type in regex_df[
+        [
+            REGEX_KEYWORD_COLUMN,
+            REGEX_COLUMN_NAME_COLUMN,
+            REGEX_KEYWORD_LOCATION_COLUMN,
+            REGEX_KEYWORD_TYPE_COLUMN,
+        ]
+    ].itertuples(index=False, name=None):
+        if column_to_check not in df.columns:
+            raise KeyError(f"Column '{column_to_check}' not found in DataFrame")
+
+        if column_to_check not in string_cache:
+            string_cache[column_to_check] = df[column_to_check].fillna('').astype(str)
+
+        if keyword_type == REGEX_PATTERN_TYPE:
+            matches = string_cache[column_to_check].str.contains(
+                keyword,
+                case=False,
+                regex=True,
+                na=False,
+            ).to_numpy(dtype=bool)
         else:
-            # Simple substring matching (case-insensitive)
-            keyword_lower = keyword.lower()
-            data[group_name] = df[column_to_check].apply(
-                lambda x: keyword_lower in str(x).lower() if pd.notna(x) else False
-            ).values
+            if column_to_check not in lowercase_cache:
+                lowercase_cache[column_to_check] = string_cache[column_to_check].str.lower()
+            matches = lowercase_cache[column_to_check].str.contains(
+                str(keyword).lower(),
+                regex=False,
+                na=False,
+            ).to_numpy(dtype=bool)
+
+        if group_name in data:
+            data[group_name] = np.logical_or(data[group_name], matches)
+        else:
+            data[group_name] = matches
     
     data = pd.DataFrame.from_dict(data)
     data.index = df.index
@@ -142,8 +159,12 @@ def generate_parent_groups(
         # Validate that child columns exist
         if not all(child in df.columns for child in children):
             raise KeyError(f"Child columns {children} not found in DataFrame")
-        
-        new_cols[parent] = df[children].apply(process_groups, axis=1)
+
+        child_frame = df[children]
+        all_missing = child_frame.isna().all(axis=1)
+        parent_values = child_frame.eq(True).any(axis=1).astype(object)
+        parent_values.loc[all_missing] = np.nan
+        new_cols[parent] = parent_values
     
     new_cols_df = pd.DataFrame(new_cols, index=df.index)
     df = pd.concat([df, new_cols_df], axis=1).reset_index(drop=True)
@@ -238,17 +259,49 @@ def column_contains_patterns(
         raise ValueError("patterns_dictionary cannot be empty")
     
     df_copy = df.copy()
-    
+    source_series = df_copy[column_name].fillna('').astype(str)
+    lowercase_series = source_series.str.lower()
+    new_columns: Dict[str, pd.Series] = {}
+
     for curr_function, patterns_list in patterns_dictionary.items():
-        # Initialize the new column to False
-        df_copy[curr_function] = False
-        
-        # Set True when any pattern is found
+        combined_mask = pd.Series(False, index=df_copy.index)
         for curr_pattern in patterns_list:
-            mask = df_copy[column_name].str.contains(curr_pattern, regex=is_regex, case=False, na=False)
-            df_copy.loc[mask, curr_function] = True
-    
-    return df_copy
+            if is_regex:
+                combined_mask |= source_series.str.contains(curr_pattern, regex=True, case=False, na=False)
+            else:
+                combined_mask |= lowercase_series.str.contains(str(curr_pattern).lower(), regex=False, na=False)
+        new_columns[curr_function] = combined_mask
+
+    return pd.concat([df_copy, pd.DataFrame(new_columns, index=df_copy.index)], axis=1)
+
+
+def align_source_columns_by_id(
+    target_ids: pd.Series,
+    source_dataframe: pd.DataFrame,
+    source_id: str,
+    rename_columns_dict: Dict[str, str]
+) -> pd.DataFrame:
+    """Align renamed source columns to target ids without performing a full frame merge."""
+    if source_dataframe is None or source_dataframe.empty:
+        raise ValueError("source_dataframe cannot be empty")
+
+    if source_id not in source_dataframe.columns:
+        raise ValueError(f"source_id '{source_id}' not found in source_dataframe")
+
+    missing_cols = [col for col in rename_columns_dict.keys() if col not in source_dataframe.columns]
+    if missing_cols:
+        raise ValueError(f"Columns {missing_cols} not found in source_dataframe")
+
+    renamed_columns = list(rename_columns_dict.values())
+    source = source_dataframe[[source_id] + list(rename_columns_dict.keys())].copy()
+    source = source.rename(columns=rename_columns_dict)
+    source[renamed_columns] = source[renamed_columns].fillna(False).astype(bool)
+    source = source.groupby(source_id, as_index=True)[renamed_columns].max()
+
+    aligned = source.reindex(target_ids)
+    aligned = aligned.where(aligned.notna(), False)
+    aligned.index = target_ids.index
+    return aligned.astype(bool)
 
 
 def merge_dataframes(

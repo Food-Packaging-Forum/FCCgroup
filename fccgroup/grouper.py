@@ -25,7 +25,7 @@ from .patterns.methods import apply_all_patterns, generate_fingerprints
 from .molecular import smiles_check, molecule_composition
 from .data import load_mapping_file, load_lists, harmonize_cas_columns, harmonize_function_columns
 from .data import apply_simple_regex, process_groups, combine_groups, generate_parent_groups
-from .data import column_contains_patterns, merge_dataframes
+from .data import column_contains_patterns, align_source_columns_by_id
 from .data.constants import individual_lists, synonym_lists, regex_combination_dictionary
 from .comptox import fetch_chemical_info
 
@@ -94,6 +94,8 @@ class ChemicalGrouper:
         
         self._regex_loaded: bool = False
         self._regex_patterns: Optional[pd.DataFrame] = None
+
+        self._verbose: bool = False
 
     @staticmethod
     def _is_provided(value: Optional[str]) -> bool:
@@ -213,7 +215,8 @@ class ChemicalGrouper:
         if not self.config.use_lists:
             return  # Not needed for this config
         
-        print("  [LOAD] Loading functional lists (first use, ~1-3 seconds)...")
+        if self._verbose:
+            print("  [LOAD] Loading functional lists (first use, ~1-3 seconds)...")
         
         # Load mapping file
         mapping_path = self.assets_path / MAPPING_FILE_NAME
@@ -233,15 +236,16 @@ class ChemicalGrouper:
         self._all_lists = load_lists(
             mapping_df=self._list_mapping,
             data_path=str(self.lists_path),
-            verbose=True
+            verbose=self._verbose
         )
         
         # Harmonize CAS and function columns
-        self._all_lists = harmonize_cas_columns(self._all_lists)
+        self._all_lists = harmonize_cas_columns(self._all_lists, verbose=self._verbose)
         self._all_lists = harmonize_function_columns(self._all_lists, self._list_mapping)
-        
+
         self._lists_loaded = True
-        print(f"  [OK] Loaded {len(self._all_lists)} functional lists")
+        if self._verbose:
+            print(f"  [OK] Loaded {len(self._all_lists)} functional lists")
     
     def _ensure_regex_loaded(self) -> None:
         """
@@ -264,7 +268,8 @@ class ChemicalGrouper:
         if not self.config.use_regex:
             return  # Not needed for this config
         
-        print("  [LOAD] Loading regex patterns (first use, ~0.5 seconds)...")
+        if self._verbose:
+            print("  [LOAD] Loading regex patterns (first use, ~0.5 seconds)...")
         
         mapping_path = self.assets_path / MAPPING_FILE_NAME
         if not mapping_path.exists():
@@ -281,7 +286,8 @@ class ChemicalGrouper:
         ]
         
         self._regex_loaded = True
-        print(f"  [OK] Loaded {len(self._regex_patterns)} regex patterns")
+        if self._verbose:
+            print(f"  [OK] Loaded {len(self._regex_patterns)} regex patterns")
 
     @staticmethod
     def _coerce_enriched_scalar(value: Any) -> Optional[str]:
@@ -440,7 +446,7 @@ class ChemicalGrouper:
         }
         return filtered_fingerprints
     
-    def group_chemicals(self, save=True) -> pd.DataFrame:
+    def group_chemicals(self, save=True, verbose: bool = False) -> pd.DataFrame:
         """
         Group chemicals based on their CAS IDs or SMILES strings using configured methods.
         
@@ -477,11 +483,14 @@ class ChemicalGrouper:
             raise ValueError(
                 f"No valid identifiers found in resolver column '{resolver_col}'"
             )
-        
-        print(f"\n{'='*60}")
-        print(f"Processing {len(df)} {input_mode.value} entries")
-        print(f"Grouping mode: {self.config.description}")
-        print(f"{'='*60}\n")
+
+        self._verbose = verbose
+
+        if self._verbose:
+            print(f"\n{'='*60}")
+            print(f"Processing {len(df)} {input_mode.value} entries")
+            print(f"Grouping mode: {self.config.description}")
+            print(f"{'='*60}\n")
         
         # Pre-load resources if needed (lazy loading happens on first access)
         if self.config.use_lists:
@@ -489,7 +498,8 @@ class ChemicalGrouper:
         if self.config.use_regex:
             self._ensure_regex_loaded()
         
-        print(f"Step 0/3: Resolving {input_mode.value} input rows...")
+        if self._verbose:
+            print(f"Step 0/3: Resolving {input_mode.value} input rows...")
         df, resolver_col = self._ensure_internal_columns(df, self.column_mapping, input_mode)
 
         if resolver_col not in df.columns:
@@ -500,47 +510,58 @@ class ChemicalGrouper:
 
         comptox_used = 0
         if self._needs_comptox_enrichment:
-            enrichment_queue: List[Tuple[Any, str]] = []
+            enrichment_targets: Dict[str, List[Any]] = {}
 
             with tqdm(df.iterrows(), total=len(df), desc="Step 0/3: Queueing CompTox lookups", unit="chem") as pbar:
                 for idx, row in pbar:
                     row_data = row.to_dict()
-                    identifier = row_data.get(resolver_col)
-                    if self._is_missing_value(identifier):
-                        pbar.write(
-                            f"  [WARN] Missing identifier in resolver column for row {idx}, "
-                            "skipping enrichment"
-                        )
+                    if not self._missing_fields_for_row(row_data):
                         continue
 
-                    enrichment_queue.append((idx, str(identifier)))
+                    identifier = row_data.get(resolver_col)
+                    if self._is_missing_value(identifier):
+                        if self._verbose:
+                            tqdm.write(
+                                f"  [WARN] Missing identifier in resolver column for row {idx}, "
+                                "skipping enrichment"
+                            )
+                        continue
 
-            comptox_batches = self._build_comptox_batches(enrichment_queue, max_payload_chars=200)
-            comptox_used = len(enrichment_queue)
+                    normalized_identifier = str(identifier)
+                    enrichment_targets.setdefault(normalized_identifier, []).append(idx)
+
+            comptox_queue = [
+                (identifier, identifier)
+                for identifier in enrichment_targets.keys()
+            ]
+            comptox_batches = self._build_comptox_batches(comptox_queue, max_payload_chars=200)
+            comptox_used = sum(len(indices) for indices in enrichment_targets.values())
 
             with tqdm(comptox_batches, desc="Step 0/3: Resolving via CompTox", unit="batch") as pbar:
                 for batch_entries in pbar:
                     batch_identifiers = [identifier for _, identifier in batch_entries]
                     try:
-                        enriched_by_identifier = fetch_chemical_info(batch_identifiers)
+                        enriched_by_identifier = fetch_chemical_info(batch_identifiers, verbose=self._verbose)
                     except Exception as exc:
-                        pbar.write(
-                            "  [WARN] CompTox batch request failed for "
-                            f"{len(batch_identifiers)} identifiers: {str(exc)}"
-                        )
+                        if self._verbose:
+                            tqdm.write(
+                                "  [WARN] CompTox batch request failed for "
+                                f"{len(batch_identifiers)} identifiers: {str(exc)}"
+                            )
                         continue
 
                     for idx, identifier in batch_entries:
                         enriched_row = enriched_by_identifier.get(identifier)
                         if not isinstance(enriched_row, dict):
                             continue
-                        self._apply_enriched_row_values(
-                            df=df,
-                            idx=idx,
-                            enriched_row=enriched_row,
-                        )
+                        for row_idx in enrichment_targets.get(identifier, []):
+                            self._apply_enriched_row_values(
+                                df=df,
+                                idx=row_idx,
+                                enriched_row=enriched_row,
+                            )
 
-        if comptox_used:
+        if comptox_used and self._verbose:
             print(f"  [OK] CompTox enrichment used for {comptox_used}/{len(df)} entries")
         
         df.fillna('', inplace=True)
@@ -556,7 +577,8 @@ class ChemicalGrouper:
 
         # Step 1: Always apply SMARTS structural patterns (if config allows)
         if GroupingMethod.SMARTS in self.selected_methods:
-            print("Step 1/3: Applying SMARTS structural patterns...")
+            if self._verbose:
+                print("Step 1/3: Applying SMARTS structural patterns...")
             id_column = SMILES_COLUMN if input_mode == InputMode.SMILES else CAS_COLUMN
             df = self._apply_structural_patterns(
                 df,
@@ -570,7 +592,8 @@ class ChemicalGrouper:
 
         # Step 2: Optionally apply functional lists
         if GroupingMethod.LISTS in self.selected_methods:
-            print("Step 2/3: Matching against functional lists...")
+            if self._verbose:
+                print("Step 2/3: Matching against functional lists...")
             df = self._apply_functional_lists(df, cas_column=CAS_COLUMN)
             methods_applied.append("Functional Lists")
 
@@ -578,7 +601,8 @@ class ChemicalGrouper:
 
         # Step 3: Optionally apply regex patterns
         if GroupingMethod.REGEX in self.selected_methods:
-            print("Step 3/3: Applying regex patterns...")
+            if self._verbose:
+                print("Step 3/3: Applying regex patterns...")
             regex_name_columns = [col for col in self.config.resolved_name_columns() if col in df.columns]
             if not regex_name_columns:
                 regex_name_columns = [col for col in [ENRICHED_NAME_COLUMNS_COLUMN] if col in df.columns]
@@ -606,10 +630,11 @@ class ChemicalGrouper:
         )
         df.columns = pd.MultiIndex.from_tuples(zip(labels, df.columns))
 
-        print(f"\n{'='*60}")
-        print(f"Grouping completed successfully!")
-        print(f"Applied methods: {', '.join(methods_applied)}")
-        print(f"{'='*60}\n")
+        if self._verbose:
+            print(f"\n{'='*60}")
+            print(f"Grouping completed successfully!")
+            print(f"Applied methods: {', '.join(methods_applied)}")
+            print(f"{'='*60}\n")
 
         if save:
             excel_filename = f"Grouping.xlsx"
@@ -658,15 +683,19 @@ class ChemicalGrouper:
         df[NOT_GROUPABLE_COLUMN] = ~df[SMILES_CHECK_COLUMN]
         
         # Apply fingerprints in parallel
-        rows = list(df.iterrows())
         results = Parallel(n_jobs=-1, verbose=0)(
             delayed(generate_fingerprints)(
-                row[id_column],
-                row[smiles_column],
-                row[SMILES_CHECK_COLUMN],
+                identifier,
+                smiles,
+                is_valid_smiles,
                 fingerprints_dict
             )
-            for _, row in tqdm(rows, desc="  Applying SMARTS fingerprints", unit="chem")
+            for identifier, smiles, is_valid_smiles in tqdm(
+                zip(df[id_column], df[smiles_column], df[SMILES_CHECK_COLUMN]),
+                total=len(df),
+                desc="  Applying SMARTS fingerprints",
+                unit="chem"
+            )
         )
         
         fpp = pd.DataFrame(results)
@@ -679,7 +708,8 @@ class ChemicalGrouper:
                 lambda is_valid: 0 if is_valid else "Invalid SMILES"
             )
             df[OUTPUT_COLUMN] = ""
-            print(f"  [OK] Processed {len(df)} chemicals for structural patterns")
+            if self._verbose:
+                print(f"  [OK] Processed {len(df)} chemicals for structural patterns")
             return df
         
         # Calculate matches
@@ -689,24 +719,27 @@ class ChemicalGrouper:
         df[STRUCTURAL_MATCHES_COUNT_COLUMN] = df[STRUCTURAL_MATCHES_COUNT_COLUMN].replace(
             -1, "Invalid SMILES"
         )
-        df[OUTPUT_COLUMN] = df[fingerprint_columns].apply(
-            lambda x: ",".join([name for name, val in x.items() if val and not pd.isna(val)]),
-            axis=1
-        )
+        fingerprint_matches = df[fingerprint_columns].to_numpy(dtype=bool, na_value=False)
+        fingerprint_names = np.array(fingerprint_columns, dtype=object)
+        df[OUTPUT_COLUMN] = [
+            ",".join(fingerprint_names[row_matches])
+            for row_matches in fingerprint_matches
+        ]
 
-        calculable_groups_concern = self._validate_groups_concern(df[OUTPUT_COLUMN].str.split(",").explode().unique())
-        df[GROUPS_CONCERN_COLUMN] = df[OUTPUT_COLUMN].apply(
-            lambda x: ", ".join(
-                [
-                    group.strip()
-                    for group in x.split(",")
-                    if group.strip() in calculable_groups_concern
-                ]
-            )
-        )
+        concern_columns = [group for group in fingerprint_columns if group in GROUPS_CONCERN]
+        if concern_columns:
+            concern_matches = df[concern_columns].to_numpy(dtype=bool, na_value=False)
+            concern_names = np.array(concern_columns, dtype=object)
+            df[GROUPS_CONCERN_COLUMN] = [
+                ", ".join(concern_names[row_matches])
+                for row_matches in concern_matches
+            ]
+        else:
+            df[GROUPS_CONCERN_COLUMN] = ""
 
 
-        print(f"  [OK] Processed {len(df)} chemicals for structural patterns")
+        if self._verbose:
+            print(f"  [OK] Processed {len(df)} chemicals for structural patterns")
         return df
     
     def _apply_functional_lists(self, df: pd.DataFrame, cas_column: str) -> pd.DataFrame:
@@ -734,21 +767,26 @@ class ChemicalGrouper:
         # Simple lists - direct CAS matching
         simple_lists = list(self._list_mapping.loc[~self._list_mapping[IS_COMPLEX_COLUMN], LIST_NAME_COLUMN]) \
             if self._list_mapping is not None else []
+        simple_matches: Dict[str, pd.Series] = {}
         
         for curr_list in tqdm(simple_lists, desc="  Matching simple lists", unit="list"):
             if curr_list in self._all_lists:
                 curr_list_df = self._all_lists[curr_list]
                 if CAS_COLUMN in curr_list_df.columns:
-                    df[curr_list] = df[cas_column].isin(curr_list_df[CAS_COLUMN])
+                    simple_matches[curr_list] = df[cas_column].isin(set(curr_list_df[CAS_COLUMN].dropna()))
+
+        if simple_matches:
+            df = pd.concat([df, pd.DataFrame(simple_matches, index=df.index)], axis=1)
         
         # Complex lists - function-based matching
-        complex_lists_handled = self._apply_complex_lists(df, cas_column=cas_column)
+        df, complex_lists_handled = self._apply_complex_lists(df, cas_column=cas_column)
         
         total_lists = len(simple_lists) + complex_lists_handled
-        print(f"  [OK] Matched against {len(simple_lists)} simple lists + {complex_lists_handled} complex lists = {total_lists} total")
+        if self._verbose:
+            print(f"  [OK] Matched against {len(simple_lists)} simple lists + {complex_lists_handled} complex lists = {total_lists} total")
         return df
     
-    def _apply_complex_lists(self, df: pd.DataFrame, cas_column: str) -> int:
+    def _apply_complex_lists(self, df: pd.DataFrame, cas_column: str) -> Tuple[pd.DataFrame, int]:
         """
         Apply complex list matching with function-based grouping.
         
@@ -771,10 +809,11 @@ class ChemicalGrouper:
             Number of complex lists successfully processed
         """
         if not self._all_lists:
-            return 0
+            return df, 0
         
         data_column_name = FUNCTION_GROUP_COLUMN
         lists_processed = 0
+        aligned_additions: List[pd.DataFrame] = []
         
         # G04, G13, G25: Pattern-based matching on function_group_in column
         complex_lists = PATTERN_COMPLEX_LIST_IDS
@@ -811,24 +850,20 @@ class ChemicalGrouper:
                 rename_dict = {col: f"{col}_{dataset_name}" for col in patterns_dict}
                 
                 # Merge into main DataFrame
-                df_merged = merge_dataframes(
-                    target_dataframe=df,
+                aligned_columns = align_source_columns_by_id(
+                    target_ids=df[cas_column],
                     source_dataframe=curr_list_df,
-                    target_id=cas_column,
                     source_id=CAS_COLUMN,
-                    rename_columns_dict=rename_dict
+                    rename_columns_dict=rename_dict,
                 )
-                
-                # Update df in place by adding the new columns
-                for new_col in rename_dict.values():
-                    if new_col in df_merged.columns:
-                        df[new_col] = df_merged[new_col]
+                aligned_additions.append(aligned_columns)
                 
                 lists_processed += 1
                 
             except Exception as e:
-                print(f"  [WARN] Could not process complex list {dataset_name}: {str(e)}")
-        
+                if self._verbose:
+                    print(f"  [WARN] Could not process complex list {dataset_name}: {str(e)}")
+
         # G23: PlastChem boolean indicator columns
         dataset_name = LIST_G23
         if dataset_name in self._all_lists:
@@ -849,24 +884,20 @@ class ChemicalGrouper:
                     rename_dict = {col: f"{col}_{dataset_name}" for col in platschem_columns if col in curr_list_df.columns}
                     
                     # Merge into main DataFrame
-                    df_merged = merge_dataframes(
-                        target_dataframe=df,
+                    aligned_columns = align_source_columns_by_id(
+                        target_ids=df[cas_column],
                         source_dataframe=curr_list_df,
-                        target_id=cas_column,
                         source_id=CAS_COLUMN,
-                        rename_columns_dict=rename_dict
+                        rename_columns_dict=rename_dict,
                     )
-                    
-                    # Update df in place
-                    for new_col in rename_dict.values():
-                        if new_col in df_merged.columns:
-                            df[new_col] = df_merged[new_col]
+                    aligned_additions.append(aligned_columns)
                     
                     lists_processed += 1
                     
             except Exception as e:
-                print(f"  [WARN] Could not process complex list {dataset_name}: {str(e)}")
-        
+                if self._verbose:
+                    print(f"  [WARN] Could not process complex list {dataset_name}: {str(e)}")
+
         # G24: PlasticMAP - pivot function_group_in column
         dataset_name = LIST_G24
         if dataset_name in self._all_lists:
@@ -888,25 +919,25 @@ class ChemicalGrouper:
                     rename_dict = {col: f"{col}_{dataset_name}" for col in unique_functions if col in pivoted.columns}
                     
                     # Merge into main DataFrame
-                    df_merged = merge_dataframes(
-                        target_dataframe=df,
+                    aligned_columns = align_source_columns_by_id(
+                        target_ids=df[cas_column],
                         source_dataframe=pivoted,
-                        target_id=cas_column,
                         source_id=CAS_COLUMN,
-                        rename_columns_dict=rename_dict
+                        rename_columns_dict=rename_dict,
                     )
-                    
-                    # Update df in place
-                    for new_col in rename_dict.values():
-                        if new_col in df_merged.columns:
-                            df[new_col] = df_merged[new_col]
+                    aligned_additions.append(aligned_columns)
                     
                     lists_processed += 1
                     
             except Exception as e:
-                print(f"  [WARN] Could not process complex list {dataset_name}: {str(e)}")
-        
-        return lists_processed
+                if self._verbose:
+                    print(f"  [WARN] Could not process complex list {dataset_name}: {str(e)}")
+
+        if aligned_additions:
+            combined_additions = pd.concat(aligned_additions, axis=1)
+            df = pd.concat([df, combined_additions], axis=1)
+
+        return df, lists_processed
     
     def _apply_regex_patterns(
         self,
@@ -968,26 +999,32 @@ class ChemicalGrouper:
         try:
             df = apply_simple_regex(df, self._regex_patterns)
             pattern_cols = self._regex_patterns[REGEX_COLUMN_NAME_COLUMN].unique()
-            print(f"  [OK] Applied {len(self._regex_patterns)} regex patterns -> {len(pattern_cols)} pattern columns")
+            if self._verbose:
+                print(f"  [OK] Applied {len(self._regex_patterns)} regex patterns -> {len(pattern_cols)} pattern columns")
         except Exception as e:
-            print(f"  [WARN] Could not apply regex patterns: {str(e)}")
+            if self._verbose:
+                print(f"  [WARN] Could not apply regex patterns: {str(e)}")
             return df
         
         # Stage 2: Generate parent groups from pattern groupings
         try:
             group_dict = self._regex_patterns.groupby(REGEX_GROUP_COLUMN).agg(list)[REGEX_COLUMN_NAME_COLUMN].to_dict()
             df = generate_parent_groups(df, group_dict)
-            print(f"  [OK] Generated {len(group_dict)} parent groups")
+            if self._verbose:
+                print(f"  [OK] Generated {len(group_dict)} parent groups")
         except Exception as e:
-            print(f"  [WARN] Could not generate parent groups: {str(e)}")
+            if self._verbose:
+                print(f"  [WARN] Could not generate parent groups: {str(e)}")
         
         # Stage 3: Generate super groups (highest level aggregation)
         try:
             super_group_dict = self._regex_patterns.groupby(REGEX_SUPER_GROUP_COLUMN).agg(list)[REGEX_COLUMN_NAME_COLUMN].to_dict()
             df = generate_parent_groups(df, super_group_dict)
-            print(f"  [OK] Generated {len(super_group_dict)} super groups")
+            if self._verbose:
+                print(f"  [OK] Generated {len(super_group_dict)} super groups")
         except Exception as e:
-            print(f"  [WARN] Could not generate super groups: {str(e)}")
+            if self._verbose:
+                print(f"  [WARN] Could not generate super groups: {str(e)}")
         
         # Stage 4: Create derived groups based on existing patterns
         try:
@@ -1024,10 +1061,12 @@ class ChemicalGrouper:
                 'Metal_Metalloid' in df.columns,
                 'UVCBs' in df.columns
             ])
-            print(f"  [OK] Created {derived_count} derived groups (Organic/Inorganic, Metals, UVCBs)")
-            
+            if self._verbose:
+                print(f"  [OK] Created {derived_count} derived groups (Organic/Inorganic, Metals, UVCBs)")
+
         except Exception as e:
-            print(f"  [WARN] Could not create derived groups: {str(e)}")
+            if self._verbose:
+                print(f"  [WARN] Could not create derived groups: {str(e)}")
         
         # Stage 5: Apply combination dictionary for compound classifications
         try:
@@ -1035,21 +1074,26 @@ class ChemicalGrouper:
             for parent, children in regex_combination_dictionary.items():
                 # Check if all required child columns exist
                 if all(child in df.columns for child in children):
-                    df[parent] = df[children].apply(
-                        lambda x: combine_groups(x, children), axis=1
-                    )
+                    child_frame = df[children]
+                    has_missing = child_frame.isna().any(axis=1)
+                    combined = child_frame.eq(True).all(axis=1).astype(object)
+                    combined.loc[has_missing] = np.nan
+                    df[parent] = combined
                     combinations_applied += 1
                 else:
-                    print("At least one of the columns is not in the dataset: ", children)
-            
-            if combinations_applied > 0:
+                    if self._verbose:
+                        print("At least one of the columns is not in the dataset: ", children)
+
+            if combinations_applied > 0 and self._verbose:
                 print(f"  [OK] Applied {combinations_applied} combination rules (OrganoMetallic, Salts)")
-            
+
         except Exception as e:
-            print(f"  [WARN] Could not apply combination groups: {str(e)}")
-        
-        total_regex_cols = len([col for col in df.columns if col])
-        print(f"  [OK] Total regex-based columns added: {total_regex_cols - initial_ncols}")
+            if self._verbose:
+                print(f"  [WARN] Could not apply combination groups: {str(e)}")
+
+        if self._verbose:
+            total_regex_cols = len([col for col in df.columns if col])
+            print(f"  [OK] Total regex-based columns added: {total_regex_cols - initial_ncols}")
         
         return df
 

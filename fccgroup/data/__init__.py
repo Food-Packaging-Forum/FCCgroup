@@ -30,6 +30,7 @@ from .frame import (
     generate_parent_groups,
     rename_columns_to_multiindex,
     column_contains_patterns,
+    align_source_columns_by_id,
     merge_dataframes,
 )
 
@@ -51,5 +52,6 @@ __all__ = [
     "generate_parent_groups",
     "rename_columns_to_multiindex",
     "column_contains_patterns",
+    "align_source_columns_by_id",
     "merge_dataframes",
 ]
