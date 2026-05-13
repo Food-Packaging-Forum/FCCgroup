@@ -4,7 +4,7 @@ import pytest
 import pandas as pd
 
 from fccgroup import ChemicalGrouper, GroupingConfig, GroupingMethod, ColumnMapping
-from fccgroup.constants import CAS_COLUMN, SMILES_COLUMN, OUTPUT_COLUMN
+from fccgroup.constants import CAS_COLUMN, SMILES_COLUMN, OUTPUT_COLUMN, GROUPS_CONCERN_COLUMN
 from fccgroup.constants import MULTIINDEX_IDENTIFIER_LABEL, MULTIINDEX_STRUCTURAL_LABEL
 
 
@@ -240,6 +240,21 @@ class TestChemicalGrouperSMARTS:
         with pytest.raises(ValueError, match='Unknown SMARTS fingerprints'):
             ChemicalGrouper(df=pd.DataFrame({'Structure': ['CC']}), grouping_config=config)
 
+    def test_invalid_smiles_has_no_groups_or_groups_of_concern(self):
+        """Invalid SMILES should produce empty structural group outputs."""
+        df = pd.DataFrame({'SMILES': ['not-a-smiles']})
+        config = GroupingConfig(
+            methods=[GroupingMethod.SMARTS],
+            column_mapping=ColumnMapping(cas=None, smiles='SMILES'),
+        )
+
+        results = ChemicalGrouper(df=df, grouping_config=config).group_chemicals(save=False)
+
+        assert (MULTIINDEX_STRUCTURAL_LABEL, OUTPUT_COLUMN) in results.columns
+        assert (MULTIINDEX_STRUCTURAL_LABEL, GROUPS_CONCERN_COLUMN) in results.columns
+        assert results.loc[0, (MULTIINDEX_STRUCTURAL_LABEL, OUTPUT_COLUMN)] == ''
+        assert results.loc[0, (MULTIINDEX_STRUCTURAL_LABEL, GROUPS_CONCERN_COLUMN)] == ''
+
     def test_smiles_to_cas_list_enrichment_is_scalarized(self, monkeypatch):
         """List-valued CAS resolver outputs should be normalized before DataFrame assignment."""
         df = pd.DataFrame({'Structure': ['CC']})
@@ -256,7 +271,7 @@ class TestChemicalGrouperSMARTS:
             lambda self, df, id_column, smiles_column, fingerprints_dict: df,
         )
 
-        def _fake_fetch(identifiers):
+        def _fake_fetch(identifiers, verbose=False):
             return {
                 identifier: {
                     CAS_COLUMN: ['74-84-0', '999-99-9'],

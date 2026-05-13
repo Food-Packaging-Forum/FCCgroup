@@ -713,23 +713,28 @@ class ChemicalGrouper:
                 print(f"  [OK] Processed {len(df)} chemicals for structural patterns")
             return df
         
+        # Build a consistent positive-match mask where invalid/NaN values are always non-matches.
+        fingerprint_positive = df[fingerprint_columns].gt(0)
+
         # Calculate matches
         df[STRUCTURAL_MATCHES_COUNT_COLUMN] = (
-            df[[SMILES_CHECK_COLUMN] + fingerprint_columns] > 0
+            pd.concat([df[[SMILES_CHECK_COLUMN]], fingerprint_positive], axis=1)
         ).sum(axis=1) - 1
         df[STRUCTURAL_MATCHES_COUNT_COLUMN] = df[STRUCTURAL_MATCHES_COUNT_COLUMN].replace(
             -1, "Invalid SMILES"
         )
-        fingerprint_matches = df[fingerprint_columns].to_numpy(dtype=bool, na_value=False)
+
+        fingerprint_matches = fingerprint_positive.to_numpy(dtype=bool)
         fingerprint_names = np.array(fingerprint_columns, dtype=object)
         df[OUTPUT_COLUMN] = [
-            ",".join(fingerprint_names[row_matches])
+            ", ".join(fingerprint_names[row_matches])
             for row_matches in fingerprint_matches
         ]
 
+        # Calculate groups of concern
         concern_columns = [group for group in fingerprint_columns if group in GROUPS_CONCERN]
         if concern_columns:
-            concern_matches = df[concern_columns].to_numpy(dtype=bool, na_value=False)
+            concern_matches = fingerprint_positive[concern_columns].to_numpy(dtype=bool)
             concern_names = np.array(concern_columns, dtype=object)
             df[GROUPS_CONCERN_COLUMN] = [
                 ", ".join(concern_names[row_matches])
