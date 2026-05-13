@@ -699,8 +699,9 @@ class ChemicalGrouper:
         )
         
         fpp = pd.DataFrame(results)
-        fpp.rename(columns={FINGERPRINT_ID_COLUMN: id_column}, inplace=True)
-        df = df.merge(fpp, on=id_column, how="left")
+        fpp.index = df.index
+        fpp = fpp.drop(columns=[FINGERPRINT_ID_COLUMN], errors="ignore")
+        df = pd.concat([df, fpp], axis=1)
 
         fingerprint_columns = [name for name in fingerprints_dict if name in df.columns]
         if not fingerprint_columns:
