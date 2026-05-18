@@ -8,7 +8,7 @@ version = "0.4.1"
 description = "Chemical grouping package based on structural patterns, functional lists, and nomenclature classification"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
+license = {text = "Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"}
 authors = [
     {name = "Albert Anguera Sempere"},
     {name = "Helene Wiesinger"}

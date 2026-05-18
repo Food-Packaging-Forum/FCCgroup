@@ -2,7 +2,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/fccgroup)](https://pypi.org/project/fccgroup/)
 [![Python](https://img.shields.io/pypi/pyversions/fccgroup)](https://pypi.org/project/fccgroup/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: CC BY-SA 4.0](https://img.shields.io/badge/License-CC%20BY--SA%204.0-lightgrey.svg)](LICENSE)
 [![Issues](https://img.shields.io/github/issues/Food-Packaging-Forum/fccgroup)](https://github.com/Food-Packaging-Forum/fccgroup/issues)
 
 FCCgroup is a Python package for grouping chemicals with three complementary methods:
@@ -187,4 +187,12 @@ For issues, questions, or suggestions, open an issue at https://github.com/Food-
 
 ## License
 
-MIT License. See LICENSE for details.
+Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
+See LICENSE for details.
+
+## Disclaimer
+
+This software is provided "as is", without warranties of any kind, express or implied.
+To the maximum extent permitted by applicable law, Food Packaging Forum and contributors
+shall not be liable for any direct, indirect, incidental, special, exemplary, or
+consequential damages arising from the use or misuse of this software.
