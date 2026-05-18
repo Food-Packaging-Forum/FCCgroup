@@ -243,7 +243,7 @@ fingerprints: Dict[str, Union[str, Callable]] = {
         'PAH derivatives': "c1[c&!R1&R](c)[c&!R1&R]([#6])ccc1",
         'PAH derivatives hydrocarbon': lambda x, row: row["Hydrocarbons"] and row['PAH derivatives'],
         'PAHs': lambda x, row: row["Hydrocarbons"] and row['PAH derivatives'] and row["Contains only ring atoms"],
-        'Benzoids': lambda x, row: row["Hydrocarbons"] and not row["PAHs"] and row["Contains benzene"],
+        'Benzoids': lambda x, row: row["Hydrocarbons"] and not row["PAHs"] and row["Contains benzene"] > 0,
         'Abietic acid derivatives (tricyclic diterpenes backbone)': '[#6]12~[#6](~[#6]~[#6]~[#6]~[#6]~1)~[#6]~[#6]~[#6]3~[#6]~2~[#6]~[#6]~[#6]~[#6]~3',
         'Steroid-like compounds': '[#6]~12~[#6](~[#6]~[#6]~[#6]~[#6]~1)~[#6]~[#6]~[#6]~3~[#6]~2~[#6]~[#6]~[#6]4~[#6](~[#6]~[#6]~[#6]~4)~3',
 
