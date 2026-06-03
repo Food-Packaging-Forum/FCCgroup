@@ -682,21 +682,33 @@ class ChemicalGrouper:
         df[SMILES_CHECK_COLUMN] = df[smiles_column].apply(lambda x: smiles_check(x))
         df[NOT_GROUPABLE_COLUMN] = ~df[SMILES_CHECK_COLUMN]
         
-        # Apply fingerprints in parallel
-        results = Parallel(n_jobs=-1, verbose=0)(
-            delayed(generate_fingerprints)(
-                identifier,
-                smiles,
-                is_valid_smiles,
-                fingerprints_dict
-            )
-            for identifier, smiles, is_valid_smiles in tqdm(
-                zip(df[id_column], df[smiles_column], df[SMILES_CHECK_COLUMN]),
-                total=len(df),
-                desc="  Applying SMARTS fingerprints",
-                unit="chem"
-            )
+        fingerprint_inputs = tqdm(
+            zip(df[id_column], df[smiles_column], df[SMILES_CHECK_COLUMN]),
+            total=len(df),
+            desc="  Applying SMARTS fingerprints",
+            unit="chem"
         )
+
+        if self.config.parallelize:
+            results = Parallel(n_jobs=-1, verbose=0)(
+                delayed(generate_fingerprints)(
+                    identifier,
+                    smiles,
+                    is_valid_smiles,
+                    fingerprints_dict
+                )
+                for identifier, smiles, is_valid_smiles in fingerprint_inputs
+            )
+        else:
+            results = [
+                generate_fingerprints(
+                    identifier,
+                    smiles,
+                    is_valid_smiles,
+                    fingerprints_dict
+                )
+                for identifier, smiles, is_valid_smiles in fingerprint_inputs
+            ]
         
         fpp = pd.DataFrame(results)
         fpp.index = df.index

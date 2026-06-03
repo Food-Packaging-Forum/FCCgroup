@@ -59,7 +59,47 @@ class TestChemicalGrouperSMARTS:
         assert config.use_smarts is True
         assert config.use_lists is False
         assert config.use_regex is False
+        assert config.parallelize is False
         assert "SMARTS" in config.description
+
+    def test_smarts_parallel_disabled_does_not_use_joblib_parallel(self, monkeypatch):
+        """Sequential mode should avoid Joblib Parallel execution by default."""
+        df = pd.DataFrame({'SMILES': ['CC']})
+        config = GroupingConfig(
+            methods=[GroupingMethod.SMARTS],
+            column_mapping=ColumnMapping(cas=None, smiles='SMILES'),
+            parallelize=False,
+        )
+
+        def _raise_if_called(*args, **kwargs):
+            raise AssertionError('Parallel() should not be called when parallelize=False')
+
+        monkeypatch.setattr('fccgroup.grouper.Parallel', _raise_if_called)
+
+        results = ChemicalGrouper(df=df, grouping_config=config).group_chemicals(save=False)
+        assert len(results) == 1
+
+    def test_smarts_parallel_enabled_uses_joblib_parallel(self, monkeypatch):
+        """Parallel mode should route SMARTS execution through Joblib Parallel."""
+        df = pd.DataFrame({'SMILES': ['CC']})
+        config = GroupingConfig(
+            methods=[GroupingMethod.SMARTS],
+            column_mapping=ColumnMapping(cas=None, smiles='SMILES'),
+            parallelize=True,
+        )
+
+        called = {'value': False}
+
+        class _ParallelSpy:
+            def __call__(self, generator):
+                called['value'] = True
+                return list(generator)
+
+        monkeypatch.setattr('fccgroup.grouper.Parallel', lambda *args, **kwargs: _ParallelSpy())
+
+        results = ChemicalGrouper(df=df, grouping_config=config).group_chemicals(save=False)
+        assert len(results) == 1
+        assert called['value'] is True
 
     def test_methods_smarts_and_regex(self):
         """A config selecting SMARTS and REGEX should reflect both, but not LISTS."""

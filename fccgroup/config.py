@@ -29,8 +29,8 @@ class GroupingMethod(str, Enum):
 class ColumnMapping:
     """Column mapping from canonical field names to user-provided DataFrame columns."""
 
-    cas: Optional[str]
-    smiles: Optional[str]
+    cas: Optional[str] = None
+    smiles: Optional[str] = None
     name_columns: List[str] = field(default_factory=list)
     formula: Optional[str] = None
 
@@ -74,6 +74,9 @@ class GroupingConfig:
 
     smarts_fingerprints: Optional[Set[str]] = None
     """Optional subset of SMARTS fingerprint names to apply. None means use all."""
+
+    parallelize: bool = False
+    """Whether to parallelize SMARTS fingerprint computation with Joblib."""
 
     def __post_init__(self) -> None:
         """Validate column mapping at construction time."""
