@@ -354,11 +354,11 @@ fingerprints: Dict[str, Union[str, Callable]] = {
                                     row["Contains alcohol"] != 0 and row["Contains O"] == 1,
         'Aromatic ethers': lambda x, row: row["Organo O (strict)"] and row["Contains aromatic C"] != 0 and 
                                     row["Contains ether"] != 0 and row["Contains O"] == 1 and row["Contains O-heterocycle"] == 0,
-        'Aliphatic carboxylic acids': lambda x, row: row["Organo O (strict)"] and row["Contains aromatic C"] == 0 and 
-                                    row["Contains carboxylic acid"] != 0 and row["Contains O"] == 2,
         'Aliphatic carboxylic acids esters and salts (loose)': lambda x, row: row["Organo O (strict)"] and row["Contains aromatic C"] == 0 and
-                                    row["Contains carboxylic acid derivatives"] == 2*row["Contains O"],
-        'Aliphatic carboxylic acids esters and salts': lambda x, row: row["Organo O (strict)"] and not row["Contains aromatic C"] and row["Contains carboxylic acid derivatives"] and row["Contains O"] ==  2*row["Contains carboxylic acid derivatives"],
+                                    2 *row["Contains carboxylic acid derivatives"] ==  row["Contains O"],
+        'Aliphatic monocarboxylic acids': lambda x, row: row["Organo O (strict)"] and row["Contains aromatic C"] == 0 and 
+                                    row["Contains carboxylic acid"] != 0 and row["Contains O"] == 2,
+        'Aliphatic monocarboxylic acid derivatives': lambda x, row: row["Organo O (strict)"] and not row["Contains aromatic C"] and row["Contains carboxylic acid derivatives"] and row["Contains O"] ==  2*row["Contains carboxylic acid derivatives"],
         'Aliphatic monocarboxylic acids esters and salts': lambda x, row: row["Organo O (strict)"] and not row["Contains aromatic C"] and row["Contains carboxylic acid derivatives"] == 1 and row["Contains O"] == 2,
         'Aliphatic dicarboxylic acids esters and salts': lambda x, row: row["Organo O (strict)"] and not row["Contains aromatic C"] and row["Contains carboxylic acid derivatives"] == 2 and row["Contains O"] == 4,
         'Aliphatic tricarboxylic acids esters and salts': lambda x, row: row["Organo O (strict)"] and not row["Contains aromatic C"] and row["Contains carboxylic acid derivatives"] == 3 and row["Contains O"] == 6,
@@ -592,6 +592,7 @@ fingerprints: Dict[str, Union[str, Callable]] = {
         'Contains C~F': lambda x: count_pattern_occurrences(x, '[#9]~[#6]'),
         'Contains F':  lambda x, row: row["Molecular Composition"].get("F", 0),
         'PFAS': lambda x: apply_pattern(Chem.AddHs(x), '[C](F)(F)([!#1&!Cl&!Br&!I])([!#1&!Cl&!Br&!I])'),
+        'Hydrofluorocarbons': lambda x, row: row["Organo F (strict)"] and row["Contains aromatic C"] == 0 and row["Contains C#C"] == 0 and row["Contains C=C"] == 0,
 
     'Contains Organo Cl': lambda x, row: {'C','Cl'}.issubset(row["Molecular Composition"]),
         'Organo Cl (strict)': lambda x, row: {'C','Cl'}.issubset(row["Molecular Composition"]) and
@@ -623,7 +624,11 @@ fingerprints: Dict[str, Union[str, Callable]] = {
         'PCDFs derivatives': lambda x: cx_smarts_query(x, 'c12ccccc1[#8]c3ccccc32.*Cl |m:13:1.2.3.4.8.9.10.11|'),
         'DDT derivatives': lambda x: apply_pattern(Chem.AddHs(x), "c1([#1,Cl])c([#1,Cl])c([#1,Cl])c([#1,Cl])c([#1,Cl])c1~[#6](~[#6][Cl])~c2c([#1,Cl])c([#1,Cl])c([#1,Cl])c([#1,Cl])c2([#1,Cl])"),
         'Contains perchlorate': lambda x: count_pattern_occurrences(x, '[Cl]([#8])([#8])([#8])[#8]'),
-    'Contains Organo Br': lambda x, row: {'C','Br'}.issubset(row["Molecular Composition"]),
+        'Hydrochlorofluorocarbons': lambda x, row: row["Organo X (strict)"] and row["Contains F"]  > 0 and row["Contains Cl"] > 0 and (row["Contains Br"] + row["Contains I"] == 0) and 
+                                                    row["Contains aromatic C"] == 0 and row["Contains C#C"] == 0 and row["Contains C=C"] == 0,
+        'Chlorofluorocarbons': lambda x, row: row["Organo X (strict)"] and row["Contains F"]  > 0 and row["Contains Cl"] > 0 and (row["Contains H"] + row["Contains Br"] + row["Contains I"] == 0) 
+                                                and (row["Contains aromatic C"] == 0) and (row["Contains C#C"] == 0) and (row["Contains C=C"] == 0),
+        'Contains Organo Br': lambda x, row: {'C','Br'}.issubset(row["Molecular Composition"]),
         'Organo Br (strict)': lambda x, row: {'C','Br'}.issubset(row["Molecular Composition"]) and
                                 set(row["Molecular Composition"]).issubset({"C", "Br", "H"}),
         'Contains C~Br': lambda x: count_pattern_occurrences(x, '[#35]~[#6]'),
