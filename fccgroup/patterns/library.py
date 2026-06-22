@@ -460,8 +460,10 @@ fingerprints: Dict[str, Union[str, Callable]] = {
         'Aromatic imines': lambda x, row: row["Organo N (strict)"] and row["Contains aromatic C"] != 0 and 
                                     row["Contains imine"] != 0 and row["Contains N"] == 1,
         'Aliphatic amides (loose)': lambda x, row: set(row["Molecular Composition"].keys()).issubset({"C", "N", "O", "H"}) and 
-                                     row["Contains aromatic C"] == 0 and  row["Contains amide"] == row["Contains N"] == row["Contains O"],
-        'Aliphatic amides': lambda x, row: set(row["Molecular Composition"].keys()).issubset({"C", "N", "O", "H"})
+                                    {"C", "N", "O"}.issubset(row["Molecular Composition"].keys().difference({"H"})) and
+                                    row["Contains aromatic C"] == 0 and  row["Contains amide"] == row["Contains N"] == row["Contains O"],
+        'Aliphatic amides': lambda x, row: set(row["Molecular Composition"].keys()).issubset({"C", "N", "O", "H"}) and
+                                    {"C", "N", "O"}.issubset(row["Molecular Composition"].keys().difference({"H"}))
                                     and row["Contains aromatic C"] == 0 and row["Contains amide"] != 0 
                                     and row["Contains O"] == 1 and row["Contains N"] == 1,
         'Aliphatic nitriles': lambda x, row: row["Organo N (strict)"] and row["Contains aromatic C"] == 0 and 
