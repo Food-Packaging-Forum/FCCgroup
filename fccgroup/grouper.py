@@ -748,12 +748,12 @@ class ChemicalGrouper:
         if concern_columns:
             concern_matches = fingerprint_positive[concern_columns].to_numpy(dtype=bool)
             concern_names = np.array(concern_columns, dtype=object)
-            df[GROUPS_CONCERN_COLUMN] = [
+            df[PRIORITY_GROUPS_COLUMN] = [
                 ", ".join(concern_names[row_matches])
                 for row_matches in concern_matches
             ]
         else:
-            df[GROUPS_CONCERN_COLUMN] = ""
+            df[PRIORITY_GROUPS_COLUMN] = ""
 
 
         if self._verbose:
