@@ -40,7 +40,7 @@ FINGERPRINT_ID_COLUMN: Final[str] = "ID"
 
 # Output/grouping columns
 OUTPUT_COLUMN: Final[str] = "Chemical groups"
-GROUPS_CONCERN_COLUMN: Final[str] = "Groups of concern"
+PRIORITY_GROUPS_COLUMN: Final[str] = "Priority groups"
 GROUPS_COLUMN: Final[str] = "groups"
 FUNCTION_GROUP_COLUMN: Final[str] = "function_group_in"
 

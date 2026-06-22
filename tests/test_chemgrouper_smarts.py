@@ -4,7 +4,7 @@ import pytest
 import pandas as pd
 
 from fccgroup import ChemicalGrouper, GroupingConfig, GroupingMethod, ColumnMapping
-from fccgroup.constants import CAS_COLUMN, SMILES_COLUMN, OUTPUT_COLUMN, GROUPS_CONCERN_COLUMN
+from fccgroup.constants import CAS_COLUMN, SMILES_COLUMN, OUTPUT_COLUMN, PRIORITY_GROUPS_COLUMN
 from fccgroup.constants import MULTIINDEX_IDENTIFIER_LABEL, MULTIINDEX_STRUCTURAL_LABEL
 
 
@@ -291,9 +291,9 @@ class TestChemicalGrouperSMARTS:
         results = ChemicalGrouper(df=df, grouping_config=config).group_chemicals(save=False)
 
         assert (MULTIINDEX_STRUCTURAL_LABEL, OUTPUT_COLUMN) in results.columns
-        assert (MULTIINDEX_STRUCTURAL_LABEL, GROUPS_CONCERN_COLUMN) in results.columns
+        assert (MULTIINDEX_STRUCTURAL_LABEL, PRIORITY_GROUPS_COLUMN) in results.columns
         assert results.loc[0, (MULTIINDEX_STRUCTURAL_LABEL, OUTPUT_COLUMN)] == ''
-        assert results.loc[0, (MULTIINDEX_STRUCTURAL_LABEL, GROUPS_CONCERN_COLUMN)] == ''
+        assert results.loc[0, (MULTIINDEX_STRUCTURAL_LABEL, PRIORITY_GROUPS_COLUMN)] == ''
 
     def test_smiles_to_cas_list_enrichment_is_scalarized(self, monkeypatch):
         """List-valued CAS resolver outputs should be normalized before DataFrame assignment."""
