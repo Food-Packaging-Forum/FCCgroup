@@ -256,7 +256,7 @@ class ChemicalGrouper:
         name/formula pattern matching.
         
         Resources loaded:
-        - Regex patterns from Mapping.xlsx "B - Keywords" sheet
+        - Regex patterns from Mapping.xlsx "B-Keywords" sheet
         
         Raises:
             FileNotFoundError: If Mapping.xlsx is missing
@@ -278,6 +278,7 @@ class ChemicalGrouper:
         self._regex_patterns = pd.read_excel(
             str(mapping_path),
             sheet_name=MAPPING_SHEET_KEYWORDS,
+            header=1
         )
         
         # Filter out disabled patterns
@@ -674,10 +675,7 @@ class ChemicalGrouper:
             - Speedup: ~5-7x with 8 cores
             - Parallel overhead: ~100-500ms (negligible for 1000+ molecules)
             - Optimization candidate: Adaptive parallelization (disable for <1000 molecules)
-        """
-        if smiles_column not in df.columns:
-            return df
-        
+        """        
         # Validate SMILES
         df[SMILES_CHECK_COLUMN] = df[smiles_column].apply(lambda x: smiles_check(x))
         df[NOT_GROUPABLE_COLUMN] = ~df[SMILES_CHECK_COLUMN]
@@ -967,7 +965,7 @@ class ChemicalGrouper:
         """
         Apply regex patterns to chemical names and molecular formulas.
         
-        Uses patterns from the Mapping.xlsx "B - Keywords" sheet to classify chemicals
+        Uses patterns from the Mapping.xlsx "B-Keywords" sheet to classify chemicals
         by their nomenclature and chemical composition. Generates hierarchical groupings
         through multiple stages:
         

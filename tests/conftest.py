@@ -72,9 +72,9 @@ def pattern_df() -> pd.DataFrame:
     if not mapping_path.exists():
         pytest.skip("assets/Mapping.xlsx not found")
 
-    raw = pd.read_excel(mapping_path, sheet_name=MAPPING_SHEET_SMARTS)
+    raw = pd.read_excel(mapping_path, sheet_name=MAPPING_SHEET_SMARTS, header=1)
     if "Column_name" not in raw.columns or "SMARTS_pattern" not in raw.columns:
-        pytest.skip("B - SMARTS sheet is missing expected columns")
+        pytest.skip("B-SMARTS sheet is missing expected columns")
 
     df = raw.rename(columns={"Column_name": "Group", "SMARTS_pattern": "SMARTS"})
     # Strip whitespace that may be present in the Excel source
@@ -98,9 +98,9 @@ def regex_df() -> pd.DataFrame:
     if not mapping_path.exists():
         pytest.skip("assets/Mapping.xlsx not found")
 
-    df = pd.read_excel(mapping_path, sheet_name=MAPPING_SHEET_KEYWORDS)
+    df = pd.read_excel(mapping_path, sheet_name=MAPPING_SHEET_KEYWORDS, header=1)
     if REGEX_COLUMN_NAME_COLUMN not in df.columns:
-        pytest.skip("B - Keywords sheet is missing 'column_name'")
+        pytest.skip("B-Keywords sheet is missing 'column_name'")
     df = df[df.use == True].reset_index(drop=True)
     return df
 
@@ -110,11 +110,11 @@ def lists_df() -> pd.DataFrame:
     if not mapping_path.exists():
         pytest.skip("assets/Mapping.xlsx not found")
 
-    df = pd.read_excel(mapping_path, sheet_name=MAPPING_SHEET_LISTS)
+    df = pd.read_excel(mapping_path, sheet_name=MAPPING_SHEET_LISTS, header=1)
     if GROUP_KEY_COLUMN not in df.columns:
-        pytest.skip(f"B - Lists sheet is missing '{GROUP_KEY_COLUMN}'")
+        pytest.skip(f"B-Lists sheet is missing '{GROUP_KEY_COLUMN}'")
     if LIST_ID_COLUMN not in df.columns:
-        pytest.skip(f"B - Lists sheet is missing '{LIST_ID_COLUMN}'")
+        pytest.skip(f"B-Lists sheet is missing '{LIST_ID_COLUMN}'")
     df = df[df.use == True].reset_index(drop=True)
     df[LIST_NAME_COLUMN] = df[GROUP_KEY_COLUMN] + "_" + df[LIST_ID_COLUMN]
     return df

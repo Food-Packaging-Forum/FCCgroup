@@ -48,14 +48,14 @@ FUNCTION_GROUP_COLUMN: Final[str] = "function_group_in"
 GROUP_KEY_COLUMN: Final[str] = "Group_key"
 LIST_ID_COLUMN: Final[str] = "list_id"
 LIST_NAME_COLUMN: Final[str] = "list_name"
-FILE_COLUMN: Final[str] = "file_location"
+FILE_COLUMN: Final[str] = "list_file_location"
 READ_PARAMETERS_COLUMN: Final[str] = "read_parameters"
 USE_COLUMN: Final[str] = "use"
 IS_COMPLEX_COLUMN: Final[str] = "is_complex"
 
 # Regex mapping columns
 REGEX_KEYWORD_COLUMN: Final[str] = "keyword"
-REGEX_COLUMN_NAME_COLUMN: Final[str] = "column_name"
+REGEX_COLUMN_NAME_COLUMN: Final[str] = "Column_name"
 REGEX_KEYWORD_LOCATION_COLUMN: Final[str] = "keyword_loc"
 REGEX_KEYWORD_TYPE_COLUMN: Final[str] = "keyword_type"
 REGEX_GROUP_COLUMN: Final[str] = "Group_name"
@@ -163,9 +163,9 @@ for group_dict in GROUPS_CONCERN_DICT.values():
 # ============================================================================
 
 MAPPING_FILE_NAME: Final[str] = "Mapping.xlsx"
-MAPPING_SHEET_LISTS: Final[str] = "B - Lists"
-MAPPING_SHEET_KEYWORDS: Final[str] = "B - Keywords"
-MAPPING_SHEET_SMARTS: Final[str] = "B - SMARTS"
+MAPPING_SHEET_LISTS: Final[str] = "B-Lists"
+MAPPING_SHEET_KEYWORDS: Final[str] = "B-Keywords"
+MAPPING_SHEET_SMARTS: Final[str] = "B-SMARTS"
 
 # Keyword to identify complex lists (containing sublists with groups and functions)
 COMPLEX_LIST_KEYWORD: Final[str] = "*** Several ***"

@@ -37,7 +37,7 @@ def _run_grouping(methods: list[GroupingMethod]) -> pd.DataFrame:
 
     fitted_df = _one_chemical_df()
     grouper = ChemicalGrouper(df=fitted_df, grouping_config=config)
-    return grouper.group_chemicals(save=False)
+    return grouper.group_chemicals(save=False, verbose=True)
 
 
 def _has_lists_and_regex_assets() -> bool:

@@ -40,7 +40,7 @@ def load_mapping_file(
         ValueError: If required columns are missing
     """
     try:
-        mapping_df = pd.read_excel(path, sheet_name=sheet_name)
+        mapping_df = pd.read_excel(path, sheet_name=sheet_name, header=1)
     except FileNotFoundError:
         raise FileNotFoundError(f"Mapping file not found: {path}")
     except Exception as e:
@@ -125,8 +125,7 @@ def load_lists(
             elif filename.endswith('.csv'):
                 df = pd.read_csv(file_path, **read_parameters)
             else:
-                if verbose:
-                    print(f"Skipping {filename}: Unsupported file format")
+                print(f"Skipping {filename}: Unsupported file format")
                 continue
             
             all_lists[list_name] = df
@@ -135,11 +134,9 @@ def load_lists(
                 print(f"✓ Loaded {list_name}: {len(df)} rows")
         
         except FileNotFoundError:
-            if verbose:
-                print(f"✗ Not found: {filename}")
+            raise FileNotFoundError(f"✗ Not found: {filename}")
         except Exception as e:
-            if verbose:
-                print(f"✗ Error loading {filename}: {str(e)}")
+            raise RuntimeError(f"✗ Error loading {filename}: {str(e)}")
     
     return all_lists
 
