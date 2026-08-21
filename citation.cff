@@ -1,0 +1,41 @@
+cff-version: 1.2.0
+message: "If you use FCCgroup, please cite the associated paper and software."
+title: "FCCgroup: A Modular Chemical Grouping Tool"
+type: software
+version: 0.4.3
+authors:
+  - family-names: "Anguera Sempere"
+    given-names: Albert
+  - family-names: Wiesinger
+    given-names: Helene
+  - name: "Food Packaging Forum"
+repository-code: "https://github.com/Food-Packaging-Forum/fccgroup"
+url: "https://github.com/Food-Packaging-Forum/fccgroup"
+keywords:
+  - chemistry
+  - chemical classification
+  - food contact chemicals
+  - SMARTS
+preferred-citation:
+  type: article
+  title: "Prioritizing and Grouping Food Contact Chemicals – From Chaos to Clarity"
+  authors:
+    - family-names: Wiesinger
+      given-names: Helene
+    - family-names: Parkinson
+      given-names: "Laura V."
+    - family-names: Geueke
+      given-names: Birgit
+    - family-names: "Anguera Sempere"
+      given-names: Albert
+    - family-names: Boucher
+      given-names: Julien
+    - family-names: Cabane
+      given-names: Emilie
+    - family-names: Scheringer
+      given-names: Martin
+    - family-names: Muncke
+      given-names: Jane
+  journal: "Environmental Science & Technology"
+  year: 2026
+  doi: "10.1021/acs.est.5c15186"
