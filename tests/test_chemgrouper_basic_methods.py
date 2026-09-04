@@ -1,5 +1,6 @@
 """Basic one-chemical tests for GroupingMethod combinations."""
 
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -79,6 +80,31 @@ def test_grouping_filters_out_unmapped_input_columns() -> None:
     result = ChemicalGrouper(df=fitted_df, grouping_config=config).group_chemicals(save=False)
 
     assert "ExternalMetadata" not in result.columns
+
+
+@pytest.mark.skipif(
+    not os.getenv(COMPTOX_API_KEY_ENV), reason="COMPTOX_API_KEY is not set (live CompTox lookup required)"
+)
+def test_grouping_smarts_no_smiles_available(no_smiles_df: pd.DataFrame) -> None:
+    """SMARTS grouping should not crash for a CAS-only chemical whose structure
+    cannot be resolved via CompTox (CAS 29590-42-9 has a DTXSID but no DTXCID)."""
+    config = GroupingConfig(
+        methods=[GroupingMethod.SMARTS],
+        column_mapping=ColumnMapping(cas=CAS_COLUMN, smiles=None),
+    )
+
+    grouper = ChemicalGrouper(df=no_smiles_df, grouping_config=config)
+    result = grouper.group_chemicals(save=False, verbose=True)
+
+    assert len(result) == 1
+    assert (MULTIINDEX_IDENTIFIER_LABEL, CAS_COLUMN) in result.columns
+    assert result.loc[0, (MULTIINDEX_IDENTIFIER_LABEL, CAS_COLUMN)] == "29590-42-9"
+    assert (MULTIINDEX_STRUCTURAL_LABEL, SMILES_COLUMN) in result.columns
+    assert result.loc[0, (MULTIINDEX_STRUCTURAL_LABEL, SMILES_COLUMN)] == ""
+    assert (MULTIINDEX_STRUCTURAL_LABEL, NOT_GROUPABLE_COLUMN) in result.columns
+    assert result.loc[0, (MULTIINDEX_STRUCTURAL_LABEL, NOT_GROUPABLE_COLUMN)] == True
+    assert (MULTIINDEX_STRUCTURAL_LABEL, OUTPUT_COLUMN) in result.columns
+    assert result.loc[0, (MULTIINDEX_STRUCTURAL_LABEL, OUTPUT_COLUMN)] == ""
 
 
 @pytest.mark.skipif(not _has_lists_and_regex_assets(), reason="Mapping.xlsx/lists assets are not available")

@@ -63,6 +63,18 @@ def ethane_df():
         CAS_COLUMN: ['74-84-0'],
     })
 
+
+@pytest.fixture
+def no_smiles_df():
+    """Create a test DataFrame with only a CAS number and no SMILES column.
+
+    CAS 29590-42-9 (isooctyl acrylate) has a DTXSID in EPA CompTox but no DTXCID,
+    so CompTox enrichment cannot resolve a SMILES for it either.
+    """
+    return pd.DataFrame({
+        CAS_COLUMN: ['29590-42-9'],
+    })
+
 def _repo_root() -> Path:
     return Path(__file__).resolve().parent.parent
 

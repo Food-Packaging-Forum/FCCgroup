@@ -675,7 +675,11 @@ class ChemicalGrouper:
             - Speedup: ~5-7x with 8 cores
             - Parallel overhead: ~100-500ms (negligible for 1000+ molecules)
             - Optimization candidate: Adaptive parallelization (disable for <1000 molecules)
-        """        
+        """
+        # Ensure the SMILES column exists even when enrichment could not resolve a structure
+        if smiles_column not in df.columns:
+            df[smiles_column] = ''
+
         # Validate SMILES
         df[SMILES_CHECK_COLUMN] = df[smiles_column].apply(lambda x: smiles_check(x))
         df[NOT_GROUPABLE_COLUMN] = ~df[SMILES_CHECK_COLUMN]
