@@ -352,15 +352,6 @@ class ChemicalGrouper:
                 missing.add(FORMULA_COLUMN)
 
         return missing
-    
-    def _validate_groups_concern(self, group_list: Optional[Union[str, List[str]]]) -> Set[str]:
-        """Validate that provided groups of concern are present in the grouping results."""
-        calculable_groups = set()
-        for group in group_list:
-            if group in GROUPS_CONCERN:
-                calculable_groups.add(group)
-        return list(calculable_groups)
-
 
     @staticmethod
     def _build_comptox_batches(
@@ -745,17 +736,21 @@ class ChemicalGrouper:
             for row_matches in fingerprint_matches
         ]
 
-        # Calculate groups of concern
-        concern_columns = [group for group in fingerprint_columns if group in GROUPS_CONCERN]
-        if concern_columns:
-            concern_matches = fingerprint_positive[concern_columns].to_numpy(dtype=bool)
-            concern_names = np.array(concern_columns, dtype=object)
-            df[PRIORITY_GROUPS_COLUMN] = [
-                ", ".join(concern_names[row_matches])
-                for row_matches in concern_matches
-            ]
-        else:
-            df[PRIORITY_GROUPS_COLUMN] = ""
+        # Calculate important and priority groups
+        for column_name, group_list in (
+            (IMPORTANT_GROUPS_COLUMN, IMPORTANT_GROUPS),
+            (PRIORITY_GROUPS_COLUMN, PRIORITY_GROUPS_CONCERN),
+        ):
+            selected_columns = [group for group in fingerprint_columns if group in group_list]
+            if selected_columns:
+                selected_matches = fingerprint_positive[selected_columns].to_numpy(dtype=bool)
+                selected_names = np.array(selected_columns, dtype=object)
+                df[column_name] = [
+                    ", ".join(selected_names[row_matches])
+                    for row_matches in selected_matches
+                ]
+            else:
+                df[column_name] = ""
 
 
         if self._verbose:
