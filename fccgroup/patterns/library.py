@@ -291,6 +291,7 @@ fingerprints: Dict[str, Union[str, Callable]] = {
         'Bisphenol CS bridge derivatives': '[c&R1]1[c&R1]([#8])[c&R1][c&R1][c&R1]([c&R1]1)-[C&R0,S&R0]-[c&R1]2[c&R1][c&R1][c&R1]([#8])[c&R1][c&R1]2',
         'Bisphenols': lambda x, row: row['Bisphenol M'] or row['Bisphenol P'] or row['Bisphenol bridge'],
         'Bisphenol derivatives': lambda x, row: row['Bisphenol M derivatives'] or row['Bisphenol P derivatives'] or row['Bisphenol bridge derivatives'],
+        'Other phenol derivatives': lambda x, row: row['Contains phenol derivatives'] and not row['Alkyl phenol derivatives'] and not row['Hindered phenol derivatives'] and not row['Bisphenol derivatives'],
         'Benzylketone derivatives': 'c1ccccc1-[#6](=[#8])([#6])',
         '2-hydroxybenzophenones': 'c1ccccc1-[#6](=[#8])-c2c(~[#8])cccc2',
         'Acetophenone derivatives': '[c&R1]1[c&R1][c&R1][c&R1][c&R1][c&R1]1C(=[#8])([C&H3])',
@@ -304,6 +305,7 @@ fingerprints: Dict[str, Union[str, Callable]] = {
         'Anthraquinone derivatives': 'c1cccc2c1[#6](=[#8])c3ccccc3[#6](=[#8])2',
         'Xanthenes derivatives': 'c1cccc2c1[#6]c3ccccc3[#8]2',
         'Xanthones derivatives': 'c1cccc2c1[#6](=[#8])c3ccccc3[#8]2',
+        'Other benzylketone derivatives': lambda x, row: row['Benzylketone derivatives'] and not row['Acetophenone derivatives'] and not row['Benzophenone derivatives'],
         'Adipic acid esters': '[#8]C(=[#8])[C&H2][C&H2][C&H2][C&H2]C(=[#8])[#8]',
         'Sebacic acid esters': '[#8]C(=[#8])[C&H2][C&H2][C&H2][C&H2][C&H2][C&H2]C(=[#8])[#8]',
         'Citric acid esters': '[#8]C(=[#8])[C&H2]C(-[#8])(C(=[#8])[#8])[C&H2]C(=[#8])[#8]',
@@ -412,6 +414,7 @@ fingerprints: Dict[str, Union[str, Callable]] = {
         'Secondary aromatic amines (any)': 'a[N&H1&X3][#6]',
         'Tertiary aromatic amines': 'c1ccccc1[N&X3]([#6])([#6])',
         'Tertiary aromatic amines (any)': 'a[N&X3]([#6])([#6])',
+        '4-Dimethylaminobenzoate': 'c1cc(C(=[#8])[#8])ccc1[N&X3]([C&H3])([C&H3])',
         'Imidazole': 'n1cncc1',
         'Imidazole derivatives': '[#7]1~[#6]~[#7]~[#6]~[#6]~1',
         'Pyrazoles': 'c1nncc1',
@@ -635,6 +638,7 @@ fingerprints: Dict[str, Union[str, Callable]] = {
         'PCDFs derivatives': lambda x: cx_smarts_query(x, 'c12ccccc1[#8]c3ccccc32.*Cl |m:13:1.2.3.4.8.9.10.11|'),
         'DDT derivatives': lambda x: apply_pattern(Chem.AddHs(x), "c1([#1,Cl])c([#1,Cl])c([#1,Cl])c([#1,Cl])c([#1,Cl])c1~[#6](~[#6][Cl])~c2c([#1,Cl])c([#1,Cl])c([#1,Cl])c([#1,Cl])c2([#1,Cl])"),
         'Contains perchlorate': lambda x: count_pattern_occurrences(x, '[Cl]([#8])([#8])([#8])[#8]'),
+        'Other organochlorine compounds': lambda x, row: row["Contains Organo Cl"] and not row["PCBs"] and not row["Chlorinated alkanes"] and not row["Chlorinated alkenes"],
         'Hydrochlorofluorocarbons': lambda x, row: row["Organo X (strict)"] and row["Contains F"]  > 0 and row["Contains Cl"] > 0 and (row["Contains Br"] + row["Contains I"] == 0) and 
                                                     row["Contains aromatic C"] == 0 and row["Contains C#C"] == 0 and row["Contains C=C"] == 0,
         'Hydrochlorofluorocarbons (Montreal)': lambda x, row: row["Organo X (strict)"] and row["Contains F"]  > 0 and row["Contains Cl"] > 0 and (row["Contains Br"] + row["Contains I"] == 0) and
@@ -643,7 +647,7 @@ fingerprints: Dict[str, Union[str, Callable]] = {
                                                 and (row["Contains aromatic C"] == 0) and (row["Contains C#C"] == 0) and (row["Contains C=C"] == 0),
         'Chlorofluorocarbons (Montreal)': lambda x, row: row["Organo X (strict)"] and row["Contains F"]  > 0 and row["Contains Cl"] > 0 and (row["Contains H"] + row["Contains Br"] + row["Contains I"] == 0)
                                                 and (row["Contains aromatic C"] == 0) and (row["Contains C#C"] == 0) and (row["Contains C=C"] == 0) and (row["Contains C"] <= 3),
-        'Contains Organo Br': lambda x, row: {'C','Br'}.issubset(row["Molecular Composition"]),
+    'Contains Organo Br': lambda x, row: {'C','Br'}.issubset(row["Molecular Composition"]),
         'Organo Br (strict)': lambda x, row: {'C','Br'}.issubset(row["Molecular Composition"]) and
                                 set(row["Molecular Composition"]).issubset({"C", "Br", "H"}),
         'Contains C~Br': lambda x: count_pattern_occurrences(x, '[#35]~[#6]'),
@@ -664,7 +668,7 @@ fingerprints: Dict[str, Union[str, Callable]] = {
                                                     row["Contains C#C"] == 0 and row["Contains C=C"] == 0,
         'Hydrobromofluorocarbons (Montreal)': lambda x, row: row["Organo X (strict)"] and row["Contains F"]  > 0 and row["Contains Br"] > 0 and (row["Contains Cl"] + row["Contains I"] == 0) and 
                                                     row["Contains C#C"] == 0 and row["Contains C=C"] == 0 and row["Contains C"] <= 3,
-    
+        'Other organobromine compounds': lambda x, row: row["Contains Organo Br"] and not row["PBBs"] and not row["PBDEs"],
     'Contains Organo I': lambda x, row: {'C','I'}.issubset(row["Molecular Composition"]),
         'Organo I (strict)': lambda x, row: {'C','I'}.issubset(row["Molecular Composition"]) and
                                 set(row["Molecular Composition"]).issubset({"C", "I", "H"}),
@@ -711,4 +715,5 @@ fingerprints: Dict[str, Union[str, Callable]] = {
         'Organometallic other': lambda x, row: row["Contains Organometallics"] and not row["Organometallic salt"] 
                                                 and not row['Contains Organo B'] and not row['Contains Organo Si'] 
                                                 and not row['Contains Organo Sn'],
+        'Other organometallic compounds': lambda x, row: row["Contains Organometallics"] and not row["Organosiloxanes"] and not row["Contains Organo Sn"]
 }
