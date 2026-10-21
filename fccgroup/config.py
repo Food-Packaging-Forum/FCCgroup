@@ -73,7 +73,14 @@ class GroupingConfig:
     """Input resolver mode derived from column mapping (CAS preferred over SMILES)."""
 
     smarts_fingerprints: Optional[Set[str]] = None
-    """Optional subset of SMARTS fingerprint names to apply. None means use all."""
+    """Optional subset of SMARTS fingerprint names to apply. None means use all.
+
+    Fingerprints the selection depends on (e.g. 'Alkanes' needs 'Aliphatic hydrocarbons')
+    are computed automatically."""
+
+    include_fingerprint_dependencies: bool = False
+    """Keep automatically added dependency fingerprints as output columns. By default only
+    the fingerprints listed in ``smarts_fingerprints`` are reported."""
 
     parallelize: bool = False
     """Whether to parallelize SMARTS fingerprint computation with Joblib."""
