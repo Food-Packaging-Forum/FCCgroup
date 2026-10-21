@@ -40,6 +40,7 @@ FINGERPRINT_ID_COLUMN: Final[str] = "ID"
 
 # Output/grouping columns
 OUTPUT_COLUMN: Final[str] = "Chemical groups"
+IMPORTANT_GROUPS_COLUMN: Final[str] = "Important groups"
 PRIORITY_GROUPS_COLUMN: Final[str] = "Priority groups"
 GROUPS_COLUMN: Final[str] = "groups"
 FUNCTION_GROUP_COLUMN: Final[str] = "function_group_in"
@@ -72,91 +73,94 @@ CAS_VALID_FORMAT_COLUMN: Final[str] = "cas_valid_format"
 
 GROUPS_CONCERN_DICT = {
     'Inorganic compounds': {
-            'Elements (loose)': 'Elements (loose)',
-            'Inorganic salt (no C)': 'Inorganic salt (no C)',
-            'Inorganic other': 'Inorganic other',
-            'Contains toxic heavy metal (As, Cd, Cr, Pb, Hg, Ni)': 'Contains toxic heavy metal (As, Cd, Cr, Pb, Hg, Ni)',
-            'Contains B': 'Contains B',
-            'Contains perchlorate': 'Contains perchlorate',
+            'Elements (loose)': {'rename_name': 'Elements (loose)', 'priority_group': True},
+            'Inorganic salt (no C)': {'rename_name': 'Inorganic salt (no C)', 'priority_group': True},
+            'Inorganic other': {'rename_name': 'Inorganic other', 'priority_group': True},
+            'Contains toxic heavy metal (As, Cd, Cr, Pb, Hg, Ni)': {'rename_name': 'Contains toxic heavy metal (As, Cd, Cr, Pb, Hg, Ni)', 'priority_group': True},
+            'Contains B': {'rename_name': 'Contains B', 'priority_group': True},
+            'Contains perchlorate': {'rename_name': 'Contains perchlorate', 'priority_group': True},
     },
     'Organometallic compounds': {
-            'Organosiloxanes': 'Organosiloxanes',
-            'Contains Organo Sn': 'Contains Organo Sn',
-            'Other organometallic compounds': 'Other organometallic compounds',
+            'Organosiloxanes': {'rename_name': 'Organosiloxanes', 'priority_group': False},
+            'Contains Organo Sn': {'rename_name': 'Contains Organo Sn', 'priority_group': True},
+            'Other organometallic compounds': {'rename_name': 'Other organometallic compounds', 'priority_group': False},
     },
     'Hydrocarbons': {
-            'PAH derivatives hydrocarbon': 'PAH derivatives hydrocarbon',
-            'Biphenyls/Terphenyls': 'Biphenyls/Terphenyls',
-            'Benzoids': 'Benzoids',
-            'Alkanes': 'Alkanes',
+            'PAH derivatives hydrocarbon': {'rename_name': 'PAH derivatives hydrocarbon', 'priority_group': True},
+            'Biphenyls/Terphenyls': {'rename_name': 'Biphenyls/Terphenyls', 'priority_group': True},
+            'Benzoids': {'rename_name': 'Benzoids', 'priority_group': True},
+            'Alkanes': {'rename_name': 'Alkanes', 'priority_group': False},
     },
     'Organooxygen compounds': {
-            'Benzofuran derivatives': 'Benzofuran derivatives',
-            'Alkyl phenol derivatives': 'Alkyl phenol derivatives',
-            'Hindered phenol derivatives': 'Hindered phenol derivatives',
-            'Bisphenol derivatives': 'Bisphenol derivatives',
-            'Other phenol derivatives': 'Other phenol derivatives',
-            'Aromatic ethers or alcohols (loose)': 'Aromatic ethers or alcohols (loose)',
-            'Acetophenone derivatives': 'Acetophenone derivatives',
-            'Benzophenone derivatives': 'Benzophenone derivatives',
-            'Benzoquinone backbone': 'Benzoquinone backbone',
-            'Other benzylketone derivatives': 'Other benzylketone derivatives',
-            'Parabens derivatives': 'Parabens derivatives',
-            'Salicylates derivatives': 'Salicylates derivatives',
-            'Ortho-phthalates': 'Ortho-phthalates',
-            'Terephthalates': 'Terephthalates',
-            'Adipic acid esters': 'Adipic acid esters',
-            'Citric acid esters': 'Citric acid esters',
-            'Triglyceride': 'Triglyceride',
-            'Aliphatic carbonyls (loose)': 'Aliphatic carbonyls (loose)',
+            'Benzofuran derivatives': {'rename_name': 'Benzofuran derivatives', 'priority_group': True},
+            'Alkyl phenol derivatives': {'rename_name': 'Alkyl phenol derivatives', 'priority_group': True},
+            'Hindered phenol derivatives': {'rename_name': 'Hindered phenol derivatives', 'priority_group': False},
+            'Bisphenol derivatives': {'rename_name': 'Bisphenol derivatives', 'priority_group': False},
+            'Other phenol derivatives': {'rename_name': 'Other phenol derivatives', 'priority_group': True},
+            'Aromatic ethers or alcohols (loose)': {'rename_name': 'Aromatic ethers or alcohols (loose)', 'priority_group': True},
+            'Acetophenone derivatives': {'rename_name': 'Acetophenone derivatives', 'priority_group': True},
+            'Benzophenone derivatives': {'rename_name': 'Benzophenone derivatives', 'priority_group': False},
+            'Benzoquinone backbone': {'rename_name': 'Benzoquinone backbone', 'priority_group': False},
+            'Other benzylketone derivatives': {'rename_name': 'Other benzylketone derivatives', 'priority_group': False},
+            'Parabens derivatives': {'rename_name': 'Parabens derivatives', 'priority_group': False},
+            'Salicylates derivatives': {'rename_name': 'Salicylates derivatives', 'priority_group': False},
+            'Ortho-phthalates': {'rename_name': 'Ortho-phthalates', 'priority_group': True},
+            'Terephthalates': {'rename_name': 'Terephthalates', 'priority_group': False},
+            'Adipic acid esters': {'rename_name': 'Adipic acid esters', 'priority_group': False},
+            'Citric acid esters': {'rename_name': 'Citric acid esters', 'priority_group': False},
+            'Triglyceride': {'rename_name': 'Triglyceride', 'priority_group': False},
+            'Aliphatic carbonyls (loose)': {'rename_name': 'Aliphatic carbonyls (loose)', 'priority_group': False},
     },
     'Organonitrogen compounds': {
-            'Imidazole': 'Imidazole',
-            'Benzotriazoles derivatives': 'Benzotriazoles derivatives',
-            'Contains imine': 'Contains imine',
-            'Contains isocyanate': 'Contains isocyanate',
-            'Contains azo': 'Contains azo',
-            'Contains nitrile': 'Contains nitrile',
-            'Contains nitro': 'Contains nitro',
-            'Contains nitrosamine': 'Contains nitrosamine',
-            'Primary aromatic amines': 'Primary aromatic amines',
-            'Secondary aromatic amines': 'Secondary aromatic amines',
-            'Tertiary aromatic amines': 'Tertiary aromatic amines',
-            'Aliphatic amines (loose)': 'Aliphatic amines (loose)',
-            'Aliphatic amides (loose)': 'Aliphatic amides (loose)',
+            'Imidazole': {'rename_name': 'Imidazole', 'priority_group': True},
+            'Benzotriazoles derivatives': {'rename_name': 'Benzotriazoles derivatives', 'priority_group': True},
+            'Contains imine': {'rename_name': 'Contains imine', 'priority_group': True},
+            'Contains isocyanate': {'rename_name': 'Contains isocyanate', 'priority_group': True},
+            'Contains azo': {'rename_name': 'Contains azo', 'priority_group': False},
+            'Contains nitrile': {'rename_name': 'Contains nitrile', 'priority_group': True},
+            'Contains nitro': {'rename_name': 'Contains nitro', 'priority_group': True},
+            'Contains nitrosamine': {'rename_name': 'Contains nitrosamine', 'priority_group': True},
+            'Primary aromatic amines': {'rename_name': 'Primary aromatic amines', 'priority_group': True},
+            'Secondary aromatic amines': {'rename_name': 'Secondary aromatic amines', 'priority_group': False},
+            'Tertiary aromatic amines': {'rename_name': 'Tertiary aromatic amines', 'priority_group': False},
+            'Aliphatic amines (loose)': {'rename_name': 'Aliphatic amines (loose)', 'priority_group': True},
+            'Aliphatic amides (loose)': {'rename_name': 'Aliphatic amides (loose)', 'priority_group': True},
     },
     'Organophosphorus compounds': {
-            'Organophosphates': 'Organophosphates',
-            'Organophosphites': 'Organophosphites',
+            'Organophosphates': {'rename_name': 'Organophosphates', 'priority_group': True},
+            'Organophosphites': {'rename_name': 'Organophosphites', 'priority_group': False},
     },    
     'Organosulfur compounds': {
-            'Benzothiazoles derivatives': 'Benzothiazoles derivatives',
-            'Contains thiol': 'Contains thiol',
-            'Contains sulfate': 'Contains sulfate',
-            'Contains sulfinate': 'Contains sulfinate',
-            'Contains dithiocarbamate': 'Contains dithiocarbamate',
-            'Contains S-C-N': 'Contains S-C-N',
+            'Benzothiazoles derivatives': {'rename_name': 'Benzothiazoles derivatives', 'priority_group': False},
+            'Contains thiol': {'rename_name': 'Contains thiol', 'priority_group': True},
+            'Contains sulfate': {'rename_name': 'Contains sulfate', 'priority_group': True},
+            'Contains sulfinate': {'rename_name': 'Contains sulfinate', 'priority_group': True},
+            'Contains dithiocarbamate': {'rename_name': 'Contains dithiocarbamate', 'priority_group': True},
+            'Contains S-C-N': {'rename_name': 'Contains S-C-N', 'priority_group': True},
     },
     'Organohalogen compounds': {
-            'PFAS': 'PFAS',
-            'Chlorinated alkanes': 'Chlorinated alkanes',
-            'Chlorinated alkenes': 'Chlorinated alkenes',
-            'PCBs': 'PCBs',
-            'Other organochlorine compounds': 'Other organochlorine compounds',
-            'PBDEs': 'PBDEs',
-            'PBBs': 'PBBs',
-            'Other organobromine compounds': 'Other organobromine compounds',
-            'Contains Organo I': 'Contains Organo I',
+            'PFAS': {'rename_name': 'PFAS', 'priority_group': True},
+            'Chlorinated alkanes': {'rename_name': 'Chlorinated alkanes', 'priority_group': True},
+            'Chlorinated alkenes': {'rename_name': 'Chlorinated alkenes', 'priority_group': True},
+            'PCBs': {'rename_name': 'PCBs', 'priority_group': False},
+            'Other organochlorine compounds': {'rename_name': 'Other organochlorine compounds', 'priority_group': True},
+            'PBDEs': {'rename_name': 'PBDEs', 'priority_group': False},
+            'PBBs': {'rename_name': 'PBBs', 'priority_group': False},
+            'Other organobromine compounds': {'rename_name': 'Other organobromine compounds', 'priority_group': True},
+            'Contains Organo I': {'rename_name': 'Contains Organo I', 'priority_group': True},
         },
 }
 
 
-GROUPS_CONCERN = []
+IMPORTANT_GROUPS = []
 RENAME_GROUPS_CONCERN = {}
+PRIORITY_GROUPS_CONCERN = []
 for group_dict in GROUPS_CONCERN_DICT.values():
-    for group, renamed_group in group_dict.items():
-        GROUPS_CONCERN.append(group)
-        RENAME_GROUPS_CONCERN[group] = renamed_group
+    for group, info in group_dict.items():
+        IMPORTANT_GROUPS.append(group)
+        RENAME_GROUPS_CONCERN[group] = info['rename_name']
+        if info['priority_group']:
+            PRIORITY_GROUPS_CONCERN.append(group)
 
 # ============================================================================
 # MAPPING FILE CONFIGURATION

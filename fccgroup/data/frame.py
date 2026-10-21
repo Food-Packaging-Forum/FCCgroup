@@ -167,6 +167,9 @@ def generate_parent_groups(
         new_cols[parent] = parent_values
     
     new_cols_df = pd.DataFrame(new_cols, index=df.index)
+    # A parent may share its name with an existing column (e.g. a pattern column named like its
+    # super group); replace it rather than creating a duplicate column.
+    df = df.drop(columns=[col for col in new_cols_df.columns if col in df.columns])
     df = pd.concat([df, new_cols_df], axis=1).reset_index(drop=True)
     return df
 

@@ -21,6 +21,8 @@ from tqdm.auto import tqdm
 from .config import GroupingConfig, GroupingMethod, InputMode
 from .constants import *
 from .patterns.library import fingerprints
+from .patterns.dependencies import dependency_order, resolve_dependencies
+from .patterns._dependency_graph import FINGERPRINT_DEPENDENCIES
 from .patterns.methods import apply_all_patterns, generate_fingerprints
 from .molecular import smiles_check, molecule_composition
 from .data import load_mapping_file, load_lists, harmonize_cas_columns, harmonize_function_columns
@@ -352,15 +354,6 @@ class ChemicalGrouper:
                 missing.add(FORMULA_COLUMN)
 
         return missing
-    
-    def _validate_groups_concern(self, group_list: Optional[Union[str, List[str]]]) -> Set[str]:
-        """Validate that provided groups of concern are present in the grouping results."""
-        calculable_groups = set()
-        for group in group_list:
-            if group in GROUPS_CONCERN:
-                calculable_groups.add(group)
-        return list(calculable_groups)
-
 
     @staticmethod
     def _build_comptox_batches(
@@ -431,21 +424,24 @@ class ChemicalGrouper:
         """Resolve and validate which SMARTS fingerprints should be applied."""
         selected = self.config.smarts_fingerprints
         if selected is None:
+            self._reported_fingerprints = set(fingerprints)
             return fingerprints
 
         available = set(fingerprints.keys())
-        unknown = sorted(selected - available)
+        unknown = sorted(set(selected) - available)
         if unknown:
             raise ValueError(
                 "Unknown SMARTS fingerprints in GroupingConfig.smarts_fingerprints: "
                 + ", ".join(unknown)
             )
 
-        filtered_fingerprints = {
-            name: fingerprints[name]
-            for name in selected
-        }
-        return filtered_fingerprints
+        # Add everything the selection depends on, evaluated dependencies-first
+        required = resolve_dependencies(selected, FINGERPRINT_DEPENDENCIES)
+        ordered = dependency_order(required, FINGERPRINT_DEPENDENCIES, fingerprints)
+        self._reported_fingerprints = (
+            set(required) if self.config.include_fingerprint_dependencies else set(selected)
+        )
+        return {name: fingerprints[name] for name in ordered}
     
     def group_chemicals(self, save=True, verbose: bool = False) -> pd.DataFrame:
         """
@@ -717,6 +713,13 @@ class ChemicalGrouper:
         fpp = fpp.drop(columns=[FINGERPRINT_ID_COLUMN], errors="ignore")
         df = pd.concat([df, fpp], axis=1)
 
+        # Drop fingerprints that were only computed as dependencies of the selected ones
+        helper_columns = [
+            name for name in fingerprints_dict
+            if name not in self._reported_fingerprints and name in df.columns
+        ]
+        df = df.drop(columns=helper_columns)
+
         fingerprint_columns = [name for name in fingerprints_dict if name in df.columns]
         if not fingerprint_columns:
             df[STRUCTURAL_MATCHES_COUNT_COLUMN] = df[SMILES_CHECK_COLUMN].apply(
@@ -745,17 +748,21 @@ class ChemicalGrouper:
             for row_matches in fingerprint_matches
         ]
 
-        # Calculate groups of concern
-        concern_columns = [group for group in fingerprint_columns if group in GROUPS_CONCERN]
-        if concern_columns:
-            concern_matches = fingerprint_positive[concern_columns].to_numpy(dtype=bool)
-            concern_names = np.array(concern_columns, dtype=object)
-            df[PRIORITY_GROUPS_COLUMN] = [
-                ", ".join(concern_names[row_matches])
-                for row_matches in concern_matches
-            ]
-        else:
-            df[PRIORITY_GROUPS_COLUMN] = ""
+        # Calculate important and priority groups
+        for column_name, group_list in (
+            (IMPORTANT_GROUPS_COLUMN, IMPORTANT_GROUPS),
+            (PRIORITY_GROUPS_COLUMN, PRIORITY_GROUPS_CONCERN),
+        ):
+            selected_columns = [group for group in fingerprint_columns if group in group_list]
+            if selected_columns:
+                selected_matches = fingerprint_positive[selected_columns].to_numpy(dtype=bool)
+                selected_names = np.array(selected_columns, dtype=object)
+                df[column_name] = [
+                    ", ".join(selected_names[row_matches])
+                    for row_matches in selected_matches
+                ]
+            else:
+                df[column_name] = ""
 
 
         if self._verbose:

@@ -26,6 +26,12 @@ jobs:
         with:
           python-version: "3.x"
 
+      - name: Verify fingerprint dependency graph is up to date
+        run: |
+          python -m pip install -e .[dev]
+          python scripts/build_fingerprint_graph.py --check
+          python -m pytest tests/test_fingerprint_dependencies.py -q
+
       - name: Build release distributions
         run: |
           # NOTE: put your own distribution build steps here.
